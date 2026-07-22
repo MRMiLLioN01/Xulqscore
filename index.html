@@ -1082,14 +1082,24 @@ async function renderCabinet(){
    </div>
    <div class="radar-card"><h3 style="font-size:18px;font-weight:800;margin-bottom:16px">${t('dims_h')}</h3>${dimHtml}</div>
    ${hist}
-   <div style="text-align:center;margin-top:20px"><button class="btn btn-ghost" onclick="go('auth')">${L('Qayta test','Пройти снова','Retake test')}</button></div>`;
+   ${(()=>{const nextTs=new Date(latest.created_at).getTime()+90*24*3600*1000;const dstr=new Date(nextTs).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ');
+     return Date.now()<nextTs
+       ? `<div class="lockbox" style="margin-top:20px"><div style="font-size:30px">⏳</div><div class="muted">${L('Keyingi test sanasi','Дата следующего теста','Next test available')}</div><div class="big">${dstr}</div><div class="muted" style="font-size:13px">${L('Har 3 oyda bir marta','Раз в 3 месяца','Once every 3 months')}</div></div>`
+       : `<div style="text-align:center;margin-top:20px"><button class="btn btn-primary" onclick="go('auth')">${L('Qayta test','Пройти снова','Retake test')}</button></div>`;})()}`;
 }
 /* ============ RE-ATTEMPT LOCK ============ */
 function attemptLock(){const last=localStorage.getItem(LOCK_KEY);if(!last)return null;const next=+last+90*24*3600*1000;return Date.now()<next?next:null;}
-function beginTest(){
+async function accountLock(){
+  if(!CURRENT_USER)return null;
+  const {data,error}=await SB.from('test_results').select('created_at').order('created_at',{ascending:false}).limit(1);
+  if(error||!data||!data.length)return null;
+  const next=new Date(data[0].created_at).getTime()+90*24*3600*1000;
+  return Date.now()<next?next:null;
+}
+async function beginTest(){
   if(!CURRENT_USER){toast(L('Avval hisobingizga kiring','Сначала войдите в аккаунт','Please sign in first'));return;}
   const c=document.getElementById('consent');if(c&&!c.checked){toast(t('consent'));return;}
-  const locked=attemptLock();
+  const locked=await accountLock();
   if(locked){go('results');renderLocked(locked);return;}
   S=new Session(AUTHTYPE);go('test');nextQuestion();
 }
