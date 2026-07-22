@@ -99,7 +99,7 @@ function loginView(msg){
       <h2 style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px">Boshqaruv paneli</h2>
       <p class="muted" style="text-align:center;font-size:13px;margin-bottom:20px">Admin hisobingiz bilan kiring</p>
       ${msg?`<div class="err">${esc(msg)}</div>`:''}
-      <div class="field"><label>Email</label><input id="email" type="email" placeholder="admin@email.com"></div>
+      <div class="field"><label>Login</label><input id="email" type="text" placeholder="Muhriddin" autocapitalize="off" autocomplete="username"></div>
       <div class="field"><label>Parol</label><input id="password" type="password" placeholder="••••••••"></div>
       <button class="btn btn-navy btn-block" id="loginBtn" onclick="doLogin()">Kirish</button>
       <div class="note">Faqat admin huquqiga ega hisoblar kira oladi.</div>
@@ -108,9 +108,11 @@ function loginView(msg){
 }
 function loadingView(){app.innerHTML=`<div class="spin"></div>`;}
 
+const ADMIN_DOMAIN='@admin.xulqscore.uz';
 async function doLogin(){
-  const email=($('email').value||'').trim(), password=$('password').value||'';
-  if(!email||!password){loginView('Email va parolni kiriting');return;}
+  let email=($('email').value||'').trim(), password=$('password').value||'';
+  if(email && !email.includes('@')) email=email.toLowerCase()+ADMIN_DOMAIN;
+  if(!email||!password){loginView('Login va parolni kiriting');return;}
   const btn=$('loginBtn'); btn.disabled=true; btn.textContent='…';
   const {data,error}=await SB.auth.signInWithPassword({email,password});
   if(error){loginView('✕ '+error.message);return;}
