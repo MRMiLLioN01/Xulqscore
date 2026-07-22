@@ -92,3 +92,4 @@ create or replace view public.admin_applicants
 -- migration pipeline installed 2026-07-22
 -- retry 2026-07-22T15:06:43Z
 -- diag 15:08:38
+-- retry2 15:13:06
