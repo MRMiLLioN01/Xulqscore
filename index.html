@@ -292,6 +292,14 @@ table.adm tr:hover td{background:var(--surface2)}
 }
 @media(max-width:560px){.feat-grid,.steps,.road-grid,.hero-stats{grid-template-columns:1fr}.qtext{font-size:19px}.brand b{font-size:17px}.score-big{font-size:60px}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== Supabase config ===== */
+const SUPABASE_URL='https://bzufysuolfbhxhyxxnts.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6dWZ5c3VvbGZiaHhoeXh4bnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjM4OTgsImV4cCI6MjEwMDI5OTg5OH0.PHFvS49SwUxD5CvnrKgUrCeC3g0_l1BkMnyO5noPNg8';
+const SB = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let CURRENT_USER=null;
+</script>
 </head>
 <body>
 <!-- TOP BAR -->
@@ -941,55 +949,80 @@ function renderDims(){
   DIMS.forEach(d=>{const m=DIMMETA[d];g.insertAdjacentHTML('beforeend',
    `<div class="dimc"><div class="badge" style="background:${m.c}">${d}</div><div><h4>${m[LANG]}</h4><p>${DIMDESC[d][LANG]}</p></div></div>`);});
 }
-/* ============ AUTH ============ */
-function setAuthType(x){AUTHTYPE=x;verified=false;eriOk=false;document.getElementById('tabInd').classList.toggle('on',x==='ind');document.getElementById('tabLeg').classList.toggle('on',x==='leg');renderAuth();}
+/* ============ AUTH (Supabase) ============ */
+function L(uz,ru,en){return LANG==='ru'?ru:LANG==='en'?en:uz;}
+let AUTHMODE='signup';
+function setAuthMode(m){AUTHMODE=m;renderAuth();}
+function setAuthType(x){AUTHTYPE=x;document.getElementById('tabInd').classList.toggle('on',x==='ind');document.getElementById('tabLeg').classList.toggle('on',x==='leg');renderAuth();}
 function renderAuth(){
-  const b=document.getElementById('authBody');verified=verified||false;
-  let html='';
-  if(AUTHTYPE==='leg'){
-    html+=`<div class="field"><label>${t('co_name')}</label><input id="coName" placeholder="XulqskorAI LLC"></div>
-    <div class="field"><label>${t('inn')}</label><input id="inn" placeholder="300 123 456" inputmode="numeric"></div>`;
+  const b=document.getElementById('authBody');
+  if(CURRENT_USER){
+    b.innerHTML=`<div class="eri" style="border-color:var(--teal)"><h5>✔ ${L('Hisobingizga kirdingiz','Вы вошли в аккаунт','Signed in')}</h5>
+       <p class="muted" style="font-size:13px;margin:0">${CURRENT_USER.email}</p></div>
+      <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
+      <button class="btn btn-primary btn-block" onclick="beginTest()">${t('start_diag')}</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="authSignOut()">${L('Chiqish','Выйти','Sign out')}</button>`;
+    return;
   }
-  html+=`<div class="field"><label>${t('phone')}</label><input id="phone" placeholder="+998 90 123 45 67" inputmode="tel"></div>`;
-  if(!verified){
-    html+=`<div id="otpZone"></div><button class="btn btn-navy btn-block" id="sendBtn" onclick="sendCode()">${t('send_code')}</button>`;
-    if(AUTHTYPE==='ind'){
-      html+=`<div class="hr-or">${t('or')}</div><div class="social">
-        <button onclick="socialAuth('OneID')"><span style="color:var(--navy3);font-weight:800">ID</span> ${t('oneid')}</button>
-        <button onclick="socialAuth('Google')"><span style="font-weight:800">G</span> ${t('google')}</button></div>`;
-    }
-  }
-  if(verified){
+  let html=`<div class="tabs2" style="margin-bottom:16px">
+     <button class="${AUTHMODE==='signup'?'on':''}" onclick="setAuthMode('signup')">${L('Roʻyxatdan oʻtish','Регистрация','Sign up')}</button>
+     <button class="${AUTHMODE==='login'?'on':''}" onclick="setAuthMode('login')">${L('Kirish','Вход','Log in')}</button></div>`;
+  if(AUTHMODE==='signup'){
     if(AUTHTYPE==='leg'){
-      html+=`<div class="eri" id="eriBox"><h5>🔑 ${t('eri_h')}</h5><p>${t('eri_p')}</p>`;
-      html+= eriOk?`<span class="badge-ok">✔ ${t('eri_ok')}</span>`:`<button class="btn btn-teal btn-block" onclick="doEri()">${t('eri_btn')}</button>`;
-      html+=`</div>`;
+      html+=`<div class="field"><label>${t('co_name')}</label><input id="coName" placeholder="XulqskorAI LLC"></div>
+      <div class="field"><label>${t('inn')}</label><input id="inn" placeholder="300 123 456" inputmode="numeric"></div>`;
     }
-    html+=`<label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:6px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>`;
-    const canStart = AUTHTYPE==='ind' || eriOk;
-    html+=`<button class="btn btn-primary btn-block" id="startBtn" ${canStart?'':'disabled'} onclick="beginTest()">${t('start_diag')}</button>`;
+    html+=`<div class="field"><label>${L('Toʻliq ism','Полное имя','Full name')}</label><input id="fullName" placeholder="${L('Ism Familiya','Имя Фамилия','Name Surname')}"></div>
+    <div class="field"><label>${t('phone')}</label><input id="phone" placeholder="+998 90 123 45 67" inputmode="tel"></div>
+    <div class="field"><label>Email</label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
+    <div class="field"><label>${L('Parol','Пароль','Password')}</label><input id="password" type="password" placeholder="••••••••"></div>
+    <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:6px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
+    <button class="btn btn-navy btn-block" id="authBtn" onclick="authSignup()">${L('Roʻyxatdan oʻtish','Зарегистрироваться','Create account')}</button>`;
+  } else {
+    html+=`<div class="field"><label>Email</label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
+    <div class="field"><label>${L('Parol','Пароль','Password')}</label><input id="password" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-navy btn-block" id="authBtn" onclick="authLogin()">${L('Kirish','Войти','Log in')}</button>`;
   }
   b.innerHTML=html;
 }
-function sendCode(){
-  const p=document.getElementById('phone').value.trim();
-  if(p.replace(/\D/g,'').length<7){toast(t('phone')+' ✕');return;}
-  document.getElementById('sendBtn').style.display='none';
-  document.getElementById('otpZone').innerHTML=
-    `<div class="field"><label>${t('enter_code')}</label><div class="otp">
-      ${[0,1,2,3].map(i=>`<input maxlength="1" inputmode="numeric" id="o${i}" oninput="otpMove(${i})">`).join('')}
-     </div><div class="note">${t('code_hint')}</div></div>
-     <button class="btn btn-navy btn-block" onclick="verifyCode()">${t('verify')}</button>`;
-  toast('SMS: 1234');
-  setTimeout(()=>document.getElementById('o0')&&document.getElementById('o0').focus(),50);
+async function authSignup(){
+  const email=(document.getElementById('email').value||'').trim();
+  const password=document.getElementById('password').value||'';
+  const full_name=(document.getElementById('fullName')?.value||'').trim();
+  const phone=(document.getElementById('phone')?.value||'').trim();
+  const org_name=(document.getElementById('coName')?.value||'').trim();
+  const consent=document.getElementById('consent');
+  if(!email||!password){toast(L('Email va parol kiriting','Введите email и пароль','Enter email and password'));return;}
+  if(password.length<6){toast(L('Parol kamida 6 ta belgi','Пароль минимум 6 символов','Password needs 6+ chars'));return;}
+  if(consent&&!consent.checked){toast(t('consent'));return;}
+  const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
+  const {data,error}=await SB.auth.signUp({email,password,options:{data:{full_name,phone,org_name,type:AUTHTYPE}}});
+  if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
+  if(data.session){CURRENT_USER=data.user;toast('✔');renderAuth();}
+  else {toast(L('Emailingizni tasdiqlang','Подтвердите email','Check email to confirm'));AUTHMODE='login';renderAuth();}
 }
-function otpMove(i){const el=document.getElementById('o'+i);if(el.value&&i<3)document.getElementById('o'+(i+1)).focus();}
-function verifyCode(){const code=[0,1,2,3].map(i=>document.getElementById('o'+i).value).join('');if(code.length<4){toast(t('enter_code'));return;}verified=true;renderAuth();}
-function socialAuth(prov){verified=true;toast(prov+' ✔');renderAuth();}
-function doEri(){eriOk=true;toast(t('eri_ok'));renderAuth();}
+async function authLogin(){
+  const email=(document.getElementById('email').value||'').trim();
+  const password=document.getElementById('password').value||'';
+  if(!email||!password){toast(L('Email va parol kiriting','Введите email и пароль','Enter email and password'));return;}
+  const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
+  const {data,error}=await SB.auth.signInWithPassword({email,password});
+  if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
+  CURRENT_USER=data.user;toast('✔');renderAuth();
+}
+async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;renderAuth();}
+async function saveResult(p){
+  try{
+    if(!CURRENT_USER){const {data}=await SB.auth.getUser();CURRENT_USER=data&&data.user||null;}
+    if(!CURRENT_USER)return;
+    const {error}=await SB.from('test_results').insert({user_id:CURRENT_USER.id,overall:p.overall,band:p.band,coeff:p.coeff,qs_count:p.qs_count,review:p.review,reasons:p.reasons,scores:p.scores,adjusted:p.adjusted});
+    if(error)console.warn('saveResult',error.message);
+  }catch(e){console.warn('saveResult',e);}
+}
 /* ============ RE-ATTEMPT LOCK ============ */
 function attemptLock(){const last=localStorage.getItem(LOCK_KEY);if(!last)return null;const next=+last+90*24*3600*1000;return Date.now()<next?next:null;}
 function beginTest(){
+  if(!CURRENT_USER){toast(L('Avval hisobingizga kiring','Сначала войдите в аккаунт','Please sign in first'));return;}
   const c=document.getElementById('consent');if(c&&!c.checked){toast(t('consent'));return;}
   const locked=attemptLock();
   if(locked){go('results');renderLocked(locked);return;}
@@ -1063,6 +1096,7 @@ function finishTest(){
   const overall=Math.round(DIMS.reduce((s,d)=>s+adj[d],0)/6);
   const band=overall>=70?'A':overall>=55?'B':overall>=40?'C':'D';
   const bandColor={A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[band];
+  saveResult({overall,band,coeff:v.coeff,qs_count:S.path.length,review:v.flag!=='ok',reasons:v.reasons||[],scores:raw,adjusted:adj});
   const w=document.getElementById('resWrap');
   let dimHtml='';DIMS.forEach(d=>{const m=DIMMETA[d];const lvl=adj[d]<45?'low':adj[d]<=65?'mid':'high';
     dimHtml+=`<div class="dimscore"><div class="top"><span>${m[LANG]} <small class="muted">(${d})</small></span><span style="color:${m.c}">${adj[d]}/100 · ${t(lvl)}</span></div><div class="bar"><i style="width:${adj[d]}%;background:${m.c}"></i></div></div>`;});
@@ -1214,6 +1248,8 @@ function boot(){
   document.getElementById('themeBtn').onclick=()=>setTheme(THEME==='light'?'dark':'light');
   document.querySelectorAll('#langSeg button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   applyI18n();
+  SB.auth.getSession().then(({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;
+    if(document.getElementById('auth').classList.contains('active'))renderAuth();});
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>
