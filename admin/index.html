@@ -85,7 +85,7 @@ const SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const DIMS=["CON","INT","SC","LOC","MON","PLN"];
 const DIMMETA={CON:{c:"#294B85",n:"Mas'uliyat va tartib"},INT:{c:"#F26A21",n:"Halollik"},SC:{c:"#17A2A0",n:"O'zini tuta bilish"},LOC:{c:"#25B8AE",n:"Hayotini nazorat qilish"},MON:{c:"#1E3A6A",n:"Pulni boshqarish"},PLN:{c:"#F58634",n:"Rejalashtirish"}};
 const REASON={r_fast:"Juda tez javoblar",r_streak:"Bir xil pozitsiya ketma-ketligi",r_contra:"Qarama-qarshi javoblar",r_coach:"Tashqi yordam belgilari"};
-let ROWS=null, TAB='dash', ADMIN=false;
+let ROWS=null, PROFILES=[], TAB='dash', ADMIN=false;
 const $=id=>document.getElementById(id);
 const app=$('app');
 function bandColor(b){return {A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[b]||'#8FA6C9';}
@@ -145,7 +145,8 @@ async function loadData(){
   ]);
   if(re||pe){app.innerHTML=`<div class="wrap"><div class="err">Ma’lumotlarni yuklashda xato: ${esc((re||pe).message)}</div><button class="btn btn-ghost" onclick="loadData()">Qayta urinish</button></div>`;return;}
   const pmap={}; (profs||[]).forEach(p=>pmap[p.id]=p);
-  ROWS=(res||[]).map(r=>{const p=pmap[r.user_id]||{};return {...r,full_name:p.full_name,type:p.type,phone:p.phone,org_name:p.org_name};});
+  PROFILES=(profs||[]).slice().sort((a,b)=>(b.created_at||'')<(a.created_at||'')?-1:1);
+  ROWS=(res||[]).map(r=>{const p=pmap[r.user_id]||{};return {...r,full_name:p.full_name,email:p.email,type:p.type,phone:p.phone,org_name:p.org_name};});
   render();
 }
 
@@ -154,19 +155,27 @@ function render(){
   const total=D.length;
   const avg=total?Math.round(D.reduce((s,x)=>s+(x.overall||0),0)/total):0;
   const rev=D.filter(x=>x.review).length;
-  const tabs=[['dash','Boshqaruv'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar']];
+  const users=PROFILES.filter(p=>p.role!=='admin');
+  const testedIds=new Set(D.map(x=>x.user_id));
+  const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar']];
   let body='';
   if(TAB==='dash'){
     body=`<div class="kpi-grid">
-      <div class="kpi"><div class="lab">Jami arizachilar</div><div class="val">${total}</div></div>
+      <div class="kpi"><div class="lab">Roʻyxatdan oʻtganlar</div><div class="val" style="color:var(--orange)">${users.length}</div><div class="sub muted">${users.length-testedIds.size} test topshirmagan</div></div>
+      <div class="kpi"><div class="lab">Test topshirganlar</div><div class="val">${total}</div></div>
       <div class="kpi"><div class="lab">O‘rtacha ball</div><div class="val" style="color:var(--teal2)">${avg}<span style="font-size:15px">/100</span></div></div>
       <div class="kpi"><div class="lab">Tekshiruvda</div><div class="val" style="color:var(--danger)">${rev}</div><div class="sub muted">${total?Math.round(rev/total*100):0}%</div></div>
-      <div class="kpi"><div class="lab">A/B daraja</div><div class="val" style="color:var(--orange)">${D.filter(x=>x.band==='A'||x.band==='B').length}</div></div>
     </div>
     <div class="two-col">
       <div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha</h3>${dimBars(D)}</div>
       <div class="adm-card"><h3>Tekshiruv navbati</h3>${reviewList(D.filter(x=>x.review).slice(0,6))}</div>
     </div>`;
+  }else if(TAB==='users'){
+    body=`<div class="adm-card"><h3>Roʻyxatdan oʻtgan foydalanuvchilar (${users.length})</h3>
+      <div style="overflow-x:auto"><table class="adm"><thead><tr>
+      <th>Ism</th><th>Email</th><th>Telefon</th><th>Turi</th><th>Roʻyxatdan oʻtgan</th><th>Test holati</th></tr></thead><tbody>
+      ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="6" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yo‘q</td></tr>`}
+      </tbody></table></div></div>`;
   }else if(TAB==='appl'){
     body=`<div class="adm-card"><h3>Arizachilar (${total})</h3>
       <div style="overflow-x:auto"><table class="adm"><thead><tr>
@@ -190,6 +199,12 @@ function render(){
     ${body}`;
 }
 function setTab(t){TAB=t;render();}
+function userRow(p,tested){
+  const typ=p.type==='leg'?`<span class="pill leg">Yuridik</span>`:`<span class="pill ind">Jismoniy</span>`;
+  const st=tested?`<span class="pill ok">✓ Topshirgan</span>`:`<span class="pill" style="background:#8fa6c922;color:#8FA6C9">Topshirmagan</span>`;
+  const nm=esc(p.full_name||'—')+(p.org_name?`<div class="muted" style="font-size:11px">${esc(p.org_name)}</div>`:'');
+  return `<tr><td><b>${nm}</b></td><td>${esc(p.email||'—')}</td><td>${esc(p.phone||'—')}</td><td>${typ}</td><td>${fmtDate(p.created_at)}</td><td>${st}</td></tr>`;
+}
 function rowHtml(x){
   const bars=`<div class="mini-bars">${DIMS.map(d=>{const v=(x.adjusted&&x.adjusted[d])||0;return `<i style="height:${4+v/100*22}px;background:${DIMMETA[d].c}"></i>`;}).join('')}</div>`;
   const typ=x.type==='leg'?`<span class="pill leg">Yuridik</span>`:`<span class="pill ind">Jismoniy</span>`;

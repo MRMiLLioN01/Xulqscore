@@ -949,6 +949,7 @@ function applyI18n(){
   renderDims();
   if(document.getElementById('auth').classList.contains('active'))renderAuth();
   if(document.getElementById('admin').classList.contains('active'))renderAdmin();
+  if(document.getElementById('cabinet').classList.contains('active'))renderCabinet();
 }
 function setLang(l){LANG=l;localStorage.setItem('xs_lang',l);applyI18n();}
 function setTheme(x){THEME=x;document.documentElement.setAttribute('data-theme',x);localStorage.setItem('xs_theme',x);document.getElementById('themeBtn').textContent=x==='light'?'🌙':'☀️';var bl=document.getElementById('brandLogo');if(bl)bl.src=x==='light'?LOGO_LIGHT:LOGO_DARK;}
