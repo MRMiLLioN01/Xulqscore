@@ -64,6 +64,9 @@ table.adm tr:hover td{background:#18243c}
 .rec .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:800;flex-shrink:0}
 .rec h5{font-size:13.5px;margin-bottom:3px}
 .rec p{font-size:12.5px;color:var(--muted)}
+.rev-item{display:flex;gap:14px;align-items:flex-start;padding:14px;border:1px solid var(--border);border-radius:14px;margin-bottom:10px;background:var(--card)}
+.rev-item .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:800}
+@media(max-width:640px){.rev-item{flex-wrap:wrap}.rev-item>div:last-child{width:100%}}
 .note{font-size:12px;color:var(--muted);text-align:center;margin-top:14px}
 .err{background:#e23b3b1a;border:1px solid #e23b3b55;color:#f5a3a3;border-radius:11px;padding:11px;font-size:13px;margin-bottom:14px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
@@ -158,10 +161,11 @@ function render(){
   const D=ROWS||[];
   const total=D.length;
   const avg=total?Math.round(D.reduce((s,x)=>s+(x.overall||0),0)/total):0;
-  const rev=D.filter(x=>x.review).length;
+  const rev=D.filter(x=>x.review&&(!x.review_status||x.review_status==='pending')).length;
   const users=PROFILES.filter(p=>p.role!=='admin');
   const testedIds=new Set(D.map(x=>x.user_id));
   const pending=users.filter(u=>!u.verified).length;
+  const revPending=D.filter(x=>x.review&&(!x.review_status||x.review_status==='pending'));
   const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar']];
   let body='';
   if(TAB==='dash'){
@@ -173,7 +177,7 @@ function render(){
     </div>
     <div class="two-col">
       <div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha</h3>${dimBars(D)}</div>
-      <div class="adm-card"><h3>Tekshiruv navbati</h3>${reviewList(D.filter(x=>x.review).slice(0,6))}</div>
+      <div class="adm-card"><h3>Tekshiruv navbati · kutilmoqda (${revPending.length})</h3>${revPending.length?revPending.slice(0,5).map(reviewCard).join(''):'<p class="muted">Boʻsh 🎉</p>'}${revPending.length>5?`<div style="text-align:center;margin-top:8px"><button class="btn btn-ghost" onclick="setTab('review')">Barchasini koʻrish →</button></div>`:''}</div>
     </div>`;
   }else if(TAB==='users'){
     body=`<div class="adm-card"><h3>Roʻyxatdan oʻtgan foydalanuvchilar (${users.length})</h3>
@@ -184,8 +188,15 @@ function render(){
   }else if(TAB==='appl'){
     body=applBody();
   }else if(TAB==='review'){
-    const rv=D.filter(x=>x.review);
-    body=`<div class="adm-card"><h3>Tekshiruv navbati (${rv.length})</h3>${rv.length?reviewList(rv):'<p class="muted">Tekshiruvga muhtoj arizachilar yo‘q.</p>'}</div>`;
+    const flagged=D.filter(x=>x.review);
+    const isPend=x=>!x.review_status||x.review_status==='pending';
+    const groups={pending:flagged.filter(isPend),approved:flagged.filter(x=>x.review_status==='approved'),rejected:flagged.filter(x=>x.review_status==='rejected'),all:flagged};
+    const shown=groups[RV_FILTER]||groups.pending;
+    const chip=(k,label)=>`<button class="${RV_FILTER===k?'on':''}" onclick="setRvFilter('${k}')">${label} (${groups[k].length})</button>`;
+    body=`<div class="adm-card"><h3>Tekshiruv navbati</h3>
+      <p class="muted" style="font-size:12.5px;margin-bottom:12px">Ishonch koeffitsiyenti past yoki halollik belgilari aniqlangan arizachilar. Har birini koʻrib chiqing va qaror qabul qiling.</p>
+      <div class="tabs" style="margin-bottom:14px">${chip('pending','⏳ Kutilmoqda')}${chip('approved','✓ Tasdiqlangan')}${chip('rejected','✗ Rad etilgan')}${chip('all','Hammasi')}</div>
+      ${shown.length?shown.map(reviewCard).join(''):`<div style="text-align:center;padding:30px" class="muted">Bu boʻlim boʻsh 🎉</div>`}</div>`;
   }else if(TAB==='dims'){
     body=`<div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha ballar</h3>${dimBars(D)}
       <p class="muted" style="font-size:12.5px;margin-top:14px">${DIMS.map(d=>DIMMETA[d].n+' ('+d+')').join(' · ')}</p></div>`;
@@ -315,11 +326,35 @@ function dimBars(D){
   return DIMS.map(d=>{const vals=D.map(x=>(x.adjusted&&x.adjusted[d])||0);const a=vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length):0;
     return `<div class="abar"><div class="nm">${DIMMETA[d].n}</div><div class="tr"><i style="width:${a}%;background:${DIMMETA[d].c}"></i></div><div class="vl">${a}</div></div>`;}).join('');
 }
-function reviewList(rv){
-  if(!rv.length)return '<p class="muted">Bo‘sh.</p>';
-  return rv.map(x=>`<div class="rec" style="border-color:var(--danger)"><div class="ic" style="background:var(--danger)">⚠</div>
-    <div><h5>${esc(x.full_name||'—')} · <span class="pill review">${x.coeff??''}</span></h5>
-    <p>${(x.reasons&&x.reasons.length?x.reasons.map(r=>REASON[r]||r):['Past ishonch koeffitsiyenti']).join(' · ')}</p></div></div>`).join('');
+let RV_FILTER='pending';
+function setRvFilter(f){RV_FILTER=f;render();}
+function reviewCard(x){
+  const reasons=(x.reasons&&x.reasons.length?x.reasons.map(r=>REASON[r]||r):['Past ishonch koeffitsiyenti']);
+  const decided=x.review_status&&x.review_status!=='pending';
+  const badge=x.review_status==='approved'?'<span class="pill ok">✓ Tasdiqlangan</span>':x.review_status==='rejected'?'<span class="pill review">✗ Rad etilgan</span>':'';
+  const actions=decided
+    ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${badge}<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="showDetail('${x.id}')">Koʻrish</button><button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="reviewDecision('${x.id}','pending')">↩︎ Qaytarish</button></div>`
+    : `<div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="showDetail('${x.id}')">Koʻrish</button>
+        <button class="btn" style="padding:6px 12px;font-size:12px;background:var(--teal);color:#fff" onclick="reviewDecision('${x.id}','approved')">✓ Tasdiqlash</button>
+        <button class="btn" style="padding:6px 12px;font-size:12px;background:var(--danger);color:#fff" onclick="reviewDecision('${x.id}','rejected')">✗ Rad etish</button></div>`;
+  return `<div class="rev-item">
+    <div class="ic" style="background:${decided?'#5a6b86':'var(--danger)'};flex-shrink:0">⚠</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(x.full_name||'—')}</b><span class="muted" style="font-size:12px">${esc(x.phone||'')}</span><span class="muted" style="font-size:12px">· ${fmtDate(x.created_at)}</span></div>
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap">
+        <span class="pill" style="background:${bandColor(x.band)}22;color:${bandColor(x.band)}">${x.overall}/100 · ${x.band}</span>
+        <span class="pill review">Ishonch: ${x.coeff}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${reasons.map(r=>`<span class="pill" style="background:#e23b3b18;color:#f0a0a0;font-size:11px">${esc(r)}</span>`).join('')}</div>
+    </div>
+    <div style="flex-shrink:0;align-self:center">${actions}</div></div>`;
+}
+async function reviewDecision(id,status){
+  const val=status==='pending'?null:status;
+  const {error}=await SB.from('test_results').update({review_status:val,reviewed_at:val?new Date().toISOString():null}).eq('id',id);
+  if(error){alert('Xato: '+error.message);return;}
+  const r=(ROWS||[]).find(x=>String(x.id)===String(id));if(r){r.review_status=val;r.reviewed_at=val?new Date().toISOString():null;}
+  render();
 }
 
 /* ===== boot ===== */
