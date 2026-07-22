@@ -89,3 +89,4 @@ create or replace view public.admin_applicants
 --   update public.profiles set role='admin' where id = (
 --     select id from auth.users where email = 'YOUR_EMAIL_HERE');
 -- ============================================================
+-- migration pipeline installed 2026-07-22
