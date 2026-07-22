@@ -90,3 +90,4 @@ create or replace view public.admin_applicants
 --     select id from auth.users where email = 'YOUR_EMAIL_HERE');
 -- ============================================================
 -- migration pipeline installed 2026-07-22
+-- retry 2026-07-22T15:06:43Z
