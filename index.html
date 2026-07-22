@@ -291,6 +291,11 @@ table.adm tr:hover td{background:var(--surface2)}
   .kpi-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}
 }
 @media(max-width:560px){.feat-grid,.steps,.road-grid,.hero-stats{grid-template-columns:1fr}.qtext{font-size:19px}.brand b{font-size:17px}.score-big{font-size:60px}}
+.spin-c{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spinc 1s linear infinite;margin:0 auto}
+@keyframes spinc{to{transform:rotate(360deg)}}
+table.hist{width:100%;border-collapse:collapse}
+table.hist td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:13.5px}
+table.hist tr:last-child td{border-bottom:0}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -312,7 +317,8 @@ let CURRENT_USER=null;
       <button data-lang="en">EN</button>
     </div>
     <button class="icon-btn" id="themeBtn" title="Theme">🌙</button>
-    <button class="btn btn-primary" style="padding:10px 18px" onclick="go('auth')" data-i18n="nav_start">Boshlash</button>
+    <span id="navAccount"></span>
+    <button class="btn btn-primary" id="navStart" style="padding:10px 18px" onclick="go('auth')" data-i18n="nav_start">Boshlash</button>
   </div>
 </div></header>
 
@@ -548,6 +554,9 @@ let CURRENT_USER=null;
 
 <!-- RESULTS -->
 <div id="results" class="screen"><div class="wrap" style="padding:34px 20px" id="resWrap"></div></div>
+
+<!-- CABINET -->
+<div id="cabinet" class="screen"><div class="wrap" style="padding:26px 20px" id="cabinetBody"></div></div>
 
 <!-- ADMIN -->
 <div id="admin" class="screen"><div class="wrap" style="padding:26px 20px">
@@ -928,7 +937,7 @@ let LANG=localStorage.getItem('xs_lang')||'uz';
 let THEME=localStorage.getItem('xs_theme')||'light';
 let AUTHTYPE='ind', S=null, curItem=null, curReason=null, curOrder=null, selIdx=null, qStart=0, tick=null, verified=false, eriOk=false;
 const LOCK_KEY='xs_lastAttempt';
-function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);if(id==='auth')renderAuth();if(id==='admin')renderAdmin();}
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);if(id==='auth')renderAuth();if(id==='admin')renderAdmin();if(id==='cabinet')renderCabinet();}
 function scrollToId(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});}
 function toggleRoad(i){var el=document.getElementById('ra'+i);if(el)el.classList.toggle('open');}
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2600);}
@@ -997,7 +1006,7 @@ async function authSignup(){
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signUp({email,password,options:{data:{full_name,phone,org_name,type:AUTHTYPE}}});
   if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
-  if(data.session){CURRENT_USER=data.user;toast('✔');renderAuth();}
+  if(data.session){CURRENT_USER=data.user;toast('✔');updateNav();renderAuth();}
   else {toast(L('Emailingizni tasdiqlang','Подтвердите email','Check email to confirm'));AUTHMODE='login';renderAuth();}
 }
 async function authLogin(){
@@ -1007,9 +1016,9 @@ async function authLogin(){
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signInWithPassword({email,password});
   if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
-  CURRENT_USER=data.user;toast('✔');renderAuth();
+  CURRENT_USER=data.user;toast('✔');updateNav();go('cabinet');
 }
-async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;renderAuth();}
+async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;updateNav();renderAuth();}
 async function saveResult(p){
   try{
     if(!CURRENT_USER){const {data}=await SB.auth.getUser();CURRENT_USER=data&&data.user||null;}
@@ -1017,6 +1026,63 @@ async function saveResult(p){
     const {error}=await SB.from('test_results').insert({user_id:CURRENT_USER.id,overall:p.overall,band:p.band,coeff:p.coeff,qs_count:p.qs_count,review:p.review,reasons:p.reasons,scores:p.scores,adjusted:p.adjusted});
     if(error)console.warn('saveResult',error.message);
   }catch(e){console.warn('saveResult',e);}
+}
+/* ============ ACCOUNT NAV + CABINET ============ */
+function userName(){if(!CURRENT_USER)return '';const m=CURRENT_USER.user_metadata||{};return m.full_name||(CURRENT_USER.email||'').split('@')[0];}
+function updateNav(){
+  const el=document.getElementById('navAccount');if(!el)return;
+  const start=document.getElementById('navStart');
+  if(CURRENT_USER){
+    const nm=userName();const ini=(nm||'?').trim().charAt(0).toUpperCase();
+    el.innerHTML=`<button class="btn btn-ghost" style="padding:8px 12px;display:inline-flex;align-items:center;gap:8px" onclick="go('cabinet')">
+      <span style="width:24px;height:24px;border-radius:50%;background:var(--grad);color:#fff;display:inline-grid;place-items:center;font-weight:800;font-size:12px">${ini}</span>
+      <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nm}</span></button>`;
+    if(start)start.style.display='none';
+  }else{
+    el.innerHTML=`<button class="btn btn-ghost" style="padding:9px 14px" onclick="go('auth')">${L('Kirish','Войти','Sign in')}</button>`;
+    if(start)start.style.display='';
+  }
+}
+async function renderCabinet(){
+  const b=document.getElementById('cabinetBody');
+  if(!CURRENT_USER){b.innerHTML=`<div class="card" style="max-width:440px;margin:60px auto;text-align:center">
+     <div style="font-size:40px">👤</div><h2 style="font-size:20px;font-weight:800;margin:8px 0 14px">${L('Hisobingizga kiring','Войдите в аккаунт','Please sign in')}</h2>
+     <button class="btn btn-primary btn-block" onclick="go('auth')">${L('Kirish / Roʻyxatdan oʻtish','Вход / Регистрация','Sign in / Sign up')}</button></div>`;return;}
+  b.innerHTML=`<div style="text-align:center;padding:60px 0"><div class="spin-c"></div></div>`;
+  const {data,error}=await SB.from('test_results').select('*').order('created_at',{ascending:false});
+  if(error){b.innerHTML=`<div class="validity review" style="max-width:560px;margin:40px auto">⚠️ ${error.message}</div>`;return;}
+  const nm=userName();
+  const head=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+     <div><div class="sec-tag" style="margin-bottom:2px">${L('SHAXSIY KABINET','ЛИЧНЫЙ КАБИНЕТ','MY CABINET')}</div>
+     <h2 style="font-size:24px;font-weight:800">${nm}</h2><div class="muted" style="font-size:13px">${CURRENT_USER.email}</div></div>
+     <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div>`;
+  if(!data||!data.length){
+    b.innerHTML=head+`<div class="card" style="max-width:520px;margin:20px auto;text-align:center">
+      <div style="font-size:40px">📊</div><h3 style="font-size:18px;font-weight:800;margin:8px 0 6px">${L('Hali natija yoʻq','Пока нет результатов','No results yet')}</h3>
+      <p class="muted" style="font-size:14px;margin-bottom:18px">${L('Diagnostikadan oʻtib, natijangizni koʻring.','Пройдите диагностику, чтобы увидеть результат.','Take the diagnostic to see your score.')}</p>
+      <button class="btn btn-primary btn-block" onclick="go('auth')">${t('start_diag')}</button></div>`;
+    return;
+  }
+  const latest=data[0];
+  const bandColor={A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[latest.band]||'#8FA6C9';
+  let dimHtml='';DIMS.forEach(d=>{const m=DIMMETA[d];const v=(latest.adjusted&&latest.adjusted[d])||0;const lvl=v<45?'low':v<=65?'mid':'high';
+    dimHtml+=`<div class="dimscore"><div class="top"><span>${m[LANG]} <small class="muted">(${d})</small></span><span style="color:${m.c}">${v}/100 · ${t(lvl)}</span></div><div class="bar"><i style="width:${v}%;background:${m.c}"></i></div></div>`;});
+  const hist=data.length>1?`<div class="radar-card" style="margin-top:16px"><h3 style="font-size:16px;font-weight:800;margin-bottom:12px">${L('Tarix','История','History')}</h3>
+     <div style="overflow-x:auto"><table class="hist"><tbody>${data.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ')}</td>
+     <td><b style="color:${({A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[r.band])||'#888'}">${r.overall}/100</b></td>
+     <td><span class="band" style="background:${({A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[r.band])||'#888'};color:#fff;font-size:11px;padding:3px 10px">${t('band_'+r.band)}</span></td>
+     <td class="muted" style="font-size:12px">${r.qs_count} ${t('q_word').toLowerCase()}</td></tr>`).join('')}</tbody></table></div></div>`:'';
+  b.innerHTML=head+`
+   <div class="res-hero" style="margin-bottom:18px">
+     <div><div class="muted" style="color:#C7D6EE;font-weight:700;margin-bottom:6px">${t('overall')} · ${new Date(latest.created_at).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ')}</div>
+       <div class="score-big">${latest.overall}<small>/100</small></div>
+       <span class="band" style="background:${bandColor};color:#fff">${t('band_'+latest.band)}</span></div>
+     <div class="radar-card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)">
+       <div style="font-weight:800;margin-bottom:10px;color:#fff">${t('radar_h')}</div>${radarSVG(latest.adjusted||{},'#fff')}</div>
+   </div>
+   <div class="radar-card"><h3 style="font-size:18px;font-weight:800;margin-bottom:16px">${t('dims_h')}</h3>${dimHtml}</div>
+   ${hist}
+   <div style="text-align:center;margin-top:20px"><button class="btn btn-ghost" onclick="go('auth')">${L('Qayta test','Пройти снова','Retake test')}</button></div>`;
 }
 /* ============ RE-ATTEMPT LOCK ============ */
 function attemptLock(){const last=localStorage.getItem(LOCK_KEY);if(!last)return null;const next=+last+90*24*3600*1000;return Date.now()<next?next:null;}
@@ -1247,8 +1313,9 @@ function boot(){
   document.getElementById('themeBtn').onclick=()=>setTheme(THEME==='light'?'dark':'light');
   document.querySelectorAll('#langSeg button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   applyI18n();
-  SB.auth.getSession().then(({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;
+  SB.auth.getSession().then(({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;updateNav();
     if(document.getElementById('auth').classList.contains('active'))renderAuth();});
+  SB.auth.onAuthStateChange((_e,session)=>{CURRENT_USER=session?session.user:null;updateNav();});
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>
