@@ -71,6 +71,10 @@ table.adm tr:hover td{background:#18243c}
 .tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:sp 1s linear infinite;margin:40px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
+.modal-bg{position:fixed;inset:0;background:rgba(6,10,18,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
+.modal-bg.show{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;max-width:560px;width:100%;max-height:88vh;overflow:auto}
+table.adm th:hover{color:var(--text)}
 @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.abar .nm{width:120px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -177,11 +181,7 @@ function render(){
       ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="6" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yo‘q</td></tr>`}
       </tbody></table></div></div>`;
   }else if(TAB==='appl'){
-    body=`<div class="adm-card"><h3>Arizachilar (${total})</h3>
-      <div style="overflow-x:auto"><table class="adm"><thead><tr>
-      <th>Ism</th><th>Turi</th><th>Telefon</th><th>Sana</th><th>Savol</th><th>Ball</th><th>Daraja</th><th>O‘lchamlar</th><th>Ishonch</th></tr></thead><tbody>
-      ${D.length?D.map(rowHtml).join(''):`<tr><td colspan="9" class="muted" style="text-align:center;padding:26px">Hozircha arizachilar yo‘q</td></tr>`}
-      </tbody></table></div></div>`;
+    body=applBody();
   }else if(TAB==='review'){
     const rv=D.filter(x=>x.review);
     body=`<div class="adm-card"><h3>Tekshiruv navbati (${rv.length})</h3>${rv.length?reviewList(rv):'<p class="muted">Tekshiruvga muhtoj arizachilar yo‘q.</p>'}</div>`;
@@ -198,7 +198,94 @@ function render(){
     <div class="tabs">${tabs.map(([k,l])=>`<button class="${TAB===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('')}</div>
     ${body}`;
 }
-function setTab(t){TAB=t;render();}
+function setTab(t){TAB=t;AS.page=1;render();}
+/* ---- applicants: filter / sort / paginate / export / detail ---- */
+let AS={sort:'created_at',dir:-1,q:'',from:'',to:'',page:1,per:25};
+function sortVal(x,key){
+  if(key.startsWith('d_'))return (x.adjusted&&x.adjusted[key.slice(2)])||0;
+  if(key==='name')return (x.full_name||'').toLowerCase();
+  if(key==='phone')return x.phone||'';
+  if(key==='overall')return x.overall||0;
+  if(key==='coeff')return x.coeff||0;
+  if(key==='band')return x.band||'';
+  return x.created_at||'';
+}
+function applyFilter(rows){
+  const q=AS.q.trim().toLowerCase();
+  return rows.filter(x=>{
+    if(q){const hay=((x.full_name||'')+' '+(x.phone||'')+' '+(x.email||'')).toLowerCase();if(!hay.includes(q))return false;}
+    if(AS.from && (x.created_at||'')< AS.from)return false;
+    if(AS.to && (x.created_at||'') > AS.to+'T23:59:59')return false;
+    return true;
+  });
+}
+function applySort(rows){const k=AS.sort,dir=AS.dir;return rows.slice().sort((a,b)=>{const va=sortVal(a,k),vb=sortVal(b,k);return (va<vb?-1:va>vb?1:0)*dir;});}
+function setSort(k){if(AS.sort===k)AS.dir*=-1;else{AS.sort=k;AS.dir=(k==='name'||k==='phone')?1:-1;}render();}
+function setQ(v){AS.q=v;AS.page=1;render();const el=document.getElementById('admSearch');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
+function setFrom(v){AS.from=v;AS.page=1;render();}
+function setTo(v){AS.to=v;AS.page=1;render();}
+function setPage(p){AS.page=p;render();}
+function arrow(k){return AS.sort===k?(AS.dir>0?' ▲':' ▼'):'';}
+function th(k,label){return `<th onclick="setSort('${k}')" style="cursor:pointer;user-select:none">${label}${arrow(k)}</th>`;}
+function applBody(){
+  const all=applySort(applyFilter(ROWS||[]));
+  const totalF=all.length, pages=Math.max(1,Math.ceil(totalF/AS.per));
+  if(AS.page>pages)AS.page=pages;
+  const start=(AS.page-1)*AS.per, pageRows=all.slice(start,start+AS.per);
+  const controls=`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">
+    <input id="admSearch" value="${esc(AS.q)}" oninput="setQ(this.value)" placeholder="🔍 Ism / telefon / email" style="flex:1;min-width:180px;padding:9px 12px;border-radius:10px;border:1.4px solid var(--border);background:#0f1a2e;color:var(--text)">
+    <label class="muted" style="font-size:12px">Dan <input type="date" value="${AS.from}" onchange="setFrom(this.value)" style="padding:7px;border-radius:8px;border:1.4px solid var(--border);background:#0f1a2e;color:var(--text)"></label>
+    <label class="muted" style="font-size:12px">Gacha <input type="date" value="${AS.to}" onchange="setTo(this.value)" style="padding:7px;border-radius:8px;border:1.4px solid var(--border);background:#0f1a2e;color:var(--text)"></label>
+    <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button></div>`;
+  const dimTh=DIMS.map(d=>th('d_'+d,d)).join('');
+  const table=`<div style="overflow-x:auto"><table class="adm"><thead><tr>
+    ${th('name','Ism')}${th('phone','Telefon')}${th('created_at','Sana')}${dimTh}${th('overall','Ball')}${th('band','Daraja')}${th('coeff','Ishonch')}<th>Holat</th></tr></thead><tbody>
+    ${pageRows.length?pageRows.map(applRow).join(''):`<tr><td colspan="${5+DIMS.length}" class="muted" style="text-align:center;padding:26px">Natija topilmadi</td></tr>`}
+    </tbody></table></div>`;
+  const pager=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--muted)">
+    <span>${totalF} ta natija · ${AS.page}/${pages} sahifa</span>
+    <span><button class="btn btn-ghost" ${AS.page<=1?'disabled':''} onclick="setPage(${AS.page-1})">‹</button>
+    <button class="btn btn-ghost" ${AS.page>=pages?'disabled':''} onclick="setPage(${AS.page+1})">›</button></span></div>`;
+  return `<div class="adm-card"><h3>Arizachilar · oʻlchamlar va ishonch</h3>${controls}${table}${pager}</div>`;
+}
+function applRow(x){
+  const dims=DIMS.map(d=>{const v=(x.adjusted&&x.adjusted[d]);return `<td style="text-align:center;color:${DIMMETA[d].c};font-weight:700">${v??'—'}</td>`;}).join('');
+  const nm=esc(x.full_name||'—')+(x.org_name?`<div class="muted" style="font-size:11px">${esc(x.org_name)}</div>`:'');
+  const val=x.review?`<span class="pill review">REVIEW</span>`:`<span class="pill ok">OK</span>`;
+  return `<tr style="cursor:pointer" onclick="showDetail('${x.id}')"><td><b>${nm}</b></td><td>${esc(x.phone||'—')}</td><td>${fmtDate(x.created_at)}</td>
+    ${dims}<td style="text-align:center"><b style="color:${bandColor(x.band)}">${x.overall??'—'}</b></td>
+    <td><span class="pill" style="background:${bandColor(x.band)}22;color:${bandColor(x.band)}">${x.band||'—'}</span></td>
+    <td style="text-align:center">${x.coeff??'—'}</td><td>${val}</td></tr>`;
+}
+function exportCSV(){
+  const rows=applySort(applyFilter(ROWS||[]));
+  const head=['Ism','Telefon','Email','Turi',...DIMS,'Ball','Daraja','Ishonch','Holat','Sana'];
+  const esc2=v=>`"${(v==null?'':String(v)).replace(/"/g,'""')}"`;
+  const lines=[head.join(',')];
+  rows.forEach(x=>lines.push([x.full_name,x.phone,x.email,x.type,...DIMS.map(d=>(x.adjusted&&x.adjusted[d])??''),x.overall,x.band,x.coeff,x.review?'REVIEW':'OK',x.created_at].map(esc2).join(',')));
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='xulqscore_arizachilar.csv';a.click();
+}
+function showDetail(id){
+  const x=(ROWS||[]).find(r=>String(r.id)===String(id));if(!x)return;
+  let el=document.getElementById('admModal');if(!el){el=document.createElement('div');el.id='admModal';document.body.appendChild(el);}
+  const dims=DIMS.map(d=>{const adj=(x.adjusted&&x.adjusted[d])||0;const raw=(x.scores&&x.scores[d]);
+    return `<div class="abar"><div class="nm">${DIMMETA[d].n} <small class="muted">(${d})</small></div><div class="tr"><i style="width:${adj}%;background:${DIMMETA[d].c}"></i></div><div class="vl">${adj}</div>${raw!=null?`<span class="muted" style="font-size:11px;margin-left:6px">raw ${raw}</span>`:''}</div>`;}).join('');
+  const reasons=(x.review&&x.reasons&&x.reasons.length)?`<div style="margin-top:12px" class="muted">⚠ ${x.reasons.map(r=>REASON[r]||r).join(' · ')}</div>`:'';
+  el.className='modal-bg show';
+  el.innerHTML=`<div class="modal-card" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
+      <div><h3 style="font-size:19px;font-weight:800">${esc(x.full_name||'—')}</h3>
+      <div class="muted" style="font-size:13px">${esc(x.phone||'')}${x.email?' · '+esc(x.email):''} · ${x.type==='leg'?'Yuridik':'Jismoniy'}${x.org_name?' · '+esc(x.org_name):''}</div></div>
+      <button class="btn btn-ghost" onclick="closeDetail()">✕</button></div>
+    <div style="display:flex;gap:16px;align-items:center;margin:16px 0;padding:14px;background:var(--surface);border-radius:12px">
+      <div style="font-size:36px;font-weight:800;color:${bandColor(x.band)}">${x.overall??'—'}<span style="font-size:14px;color:var(--muted)">/100</span></div>
+      <span class="pill" style="background:${bandColor(x.band)}22;color:${bandColor(x.band)}">${x.band||'—'}</span>
+      <div class="muted" style="margin-left:auto;font-size:13px">Ishonch: <b>${x.coeff??'—'}</b> · ${x.qs_count??'—'} savol · ${fmtDate(x.created_at)}</div></div>
+    ${dims}${reasons}</div>`;
+  el.onclick=closeDetail;
+}
+function closeDetail(){const el=document.getElementById('admModal');if(el)el.className='';}
 function userRow(p,tested){
   const typ=p.type==='leg'?`<span class="pill leg">Yuridik</span>`:`<span class="pill ind">Jismoniy</span>`;
   const st=tested?`<span class="pill ok">✓ Topshirgan</span>`:`<span class="pill" style="background:#8fa6c922;color:#8FA6C9">Topshirmagan</span>`;

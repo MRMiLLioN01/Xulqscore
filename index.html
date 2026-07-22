@@ -961,13 +961,18 @@ function renderDims(){
 /* ============ AUTH (Supabase) ============ */
 function L(uz,ru,en){return LANG==='ru'?ru:LANG==='en'?en:uz;}
 let AUTHMODE='signup';
+/* phone: must be +998 (XX) XXX-XX-XX */
+function phoneDigits(v){let d=(v||'').replace(/\D/g,'');if(d.startsWith('998'))return d;if(d.startsWith('0'))return '998'+d.slice(1);if(d.length&&d.length<=9)return '998'+d;return d;}
+function validPhone(v){return /^998\d{9}$/.test(phoneDigits(v));}
+function fmtPhone(v){const rest=phoneDigits(v).slice(3,12);let r='+998';if(rest.length>0)r+=' ('+rest.slice(0,2);if(rest.length>=2)r+=')';if(rest.length>2)r+=' '+rest.slice(2,5);if(rest.length>5)r+='-'+rest.slice(5,7);if(rest.length>7)r+='-'+rest.slice(7,9);return r;}
+function phoneEmail(v){return 'u'+phoneDigits(v)+'@xulqscore.app';}
 function setAuthMode(m){AUTHMODE=m;renderAuth();}
 function setAuthType(x){AUTHTYPE=x;document.getElementById('tabInd').classList.toggle('on',x==='ind');document.getElementById('tabLeg').classList.toggle('on',x==='leg');renderAuth();}
 function renderAuth(){
   const b=document.getElementById('authBody');
   if(CURRENT_USER){
     b.innerHTML=`<div class="eri" style="border-color:var(--teal)"><h5>✔ ${L('Hisobingizga kirdingiz','Вы вошли в аккаунт','Signed in')}</h5>
-       <p class="muted" style="font-size:13px;margin:0">${CURRENT_USER.email}</p></div>
+       <p class="muted" style="font-size:13px;margin:0">${(CURRENT_USER.user_metadata||{}).phone||userName()}</p></div>
       <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
       <button class="btn btn-primary btn-block" onclick="beginTest()">${t('start_diag')}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="authSignOut()">${L('Chiqish','Выйти','Sign out')}</button>`;
@@ -982,41 +987,42 @@ function renderAuth(){
       <div class="field"><label>${t('inn')}</label><input id="inn" placeholder="300 123 456" inputmode="numeric"></div>`;
     }
     html+=`<div class="field"><label>${L('Toʻliq ism','Полное имя','Full name')}</label><input id="fullName" placeholder="${L('Ism Familiya','Имя Фамилия','Name Surname')}"></div>
-    <div class="field"><label>${t('phone')}</label><input id="phone" placeholder="+998 90 123 45 67" inputmode="tel"></div>
-    <div class="field"><label>Email</label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
+    <div class="field"><label>${t('phone')} *</label><input id="phone" value="+998 " inputmode="tel" oninput="this.value=fmtPhone(this.value)" onfocus="if(!this.value)this.value='+998 '"></div>
+    <div class="field"><label>Email <span class="muted" style="font-weight:400">(${L('ixtiyoriy','необязательно','optional')})</span></label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
     <div class="field"><label>${L('Parol','Пароль','Password')}</label><input id="password" type="password" placeholder="••••••••"></div>
     <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:6px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
     <button class="btn btn-navy btn-block" id="authBtn" onclick="authSignup()">${L('Roʻyxatdan oʻtish','Зарегистрироваться','Create account')}</button>`;
   } else {
-    html+=`<div class="field"><label>Email</label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
+    html+=`<div class="field"><label>${t('phone')}</label><input id="phone" value="+998 " inputmode="tel" oninput="this.value=fmtPhone(this.value)" onfocus="if(!this.value)this.value='+998 '"></div>
     <div class="field"><label>${L('Parol','Пароль','Password')}</label><input id="password" type="password" placeholder="••••••••"></div>
     <button class="btn btn-navy btn-block" id="authBtn" onclick="authLogin()">${L('Kirish','Войти','Log in')}</button>`;
   }
   b.innerHTML=html;
 }
 async function authSignup(){
-  const email=(document.getElementById('email').value||'').trim();
+  const phoneRaw=document.getElementById('phone')?.value||'';
+  const phone=fmtPhone(phoneRaw);
+  const contact_email=(document.getElementById('email').value||'').trim();
   const password=document.getElementById('password').value||'';
   const full_name=(document.getElementById('fullName')?.value||'').trim();
-  const phone=(document.getElementById('phone')?.value||'').trim();
   const org_name=(document.getElementById('coName')?.value||'').trim();
   const consent=document.getElementById('consent');
-  if(!email||!password){toast(L('Email va parol kiriting','Введите email и пароль','Enter email and password'));return;}
+  if(!validPhone(phone)){toast(L('Telefon raqami: +998 (XX) XXX-XX-XX','Телефон: +998 (XX) XXX-XX-XX','Phone: +998 (XX) XXX-XX-XX'));return;}
   if(password.length<6){toast(L('Parol kamida 6 ta belgi','Пароль минимум 6 символов','Password needs 6+ chars'));return;}
   if(consent&&!consent.checked){toast(t('consent'));return;}
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
-  const {data,error}=await SB.auth.signUp({email,password,options:{data:{full_name,phone,org_name,type:AUTHTYPE}}});
-  if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
-  if(data.session){CURRENT_USER=data.user;toast('✔');updateNav();renderAuth();}
-  else {toast(L('Emailingizni tasdiqlang','Подтвердите email','Check email to confirm'));AUTHMODE='login';renderAuth();}
+  const {data,error}=await SB.auth.signUp({email:phoneEmail(phone),password,options:{data:{full_name,phone,contact_email:contact_email||null,org_name,type:AUTHTYPE}}});
+  if(error){btn.disabled=false;toast(/registered|exists/i.test(error.message)?L('Bu raqam roʻyxatdan oʻtgan','Этот номер уже зарегистрирован','This number is already registered'):('✕ '+error.message));return;}
+  if(data.session){CURRENT_USER=data.user;toast('✔');updateNav();go('cabinet');}
+  else {AUTHMODE='login';renderAuth();}
 }
 async function authLogin(){
-  const email=(document.getElementById('email').value||'').trim();
+  const phone=fmtPhone(document.getElementById('phone')?.value||'');
   const password=document.getElementById('password').value||'';
-  if(!email||!password){toast(L('Email va parol kiriting','Введите email и пароль','Enter email and password'));return;}
+  if(!validPhone(phone)){toast(L('Telefon raqami: +998 (XX) XXX-XX-XX','Телефон: +998 (XX) XXX-XX-XX','Phone: +998 (XX) XXX-XX-XX'));return;}
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
-  const {data,error}=await SB.auth.signInWithPassword({email,password});
-  if(error){btn.disabled=false;toast('✕ '+error.message);renderAuth();return;}
+  const {data,error}=await SB.auth.signInWithPassword({email:phoneEmail(phone),password});
+  if(error){btn.disabled=false;toast(L('Telefon yoki parol notoʻgʻri','Неверный телефон или пароль','Wrong phone or password'));return;}
   CURRENT_USER=data.user;toast('✔');updateNav();go('cabinet');
 }
 async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;updateNav();renderAuth();}
@@ -1029,7 +1035,30 @@ async function saveResult(p){
   }catch(e){console.warn('saveResult',e);}
 }
 /* ============ ACCOUNT NAV + CABINET ============ */
-function userName(){if(!CURRENT_USER)return '';const m=CURRENT_USER.user_metadata||{};return m.full_name||(CURRENT_USER.email||'').split('@')[0];}
+let CAB_LATEST=null;
+function downloadPDF(){
+  const r=CAB_LATEST;if(!r){toast(L('Natija yoʻq','Нет результата','No result'));return;}
+  const dt=new Date(r.created_at).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ');
+  const bc={A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[r.band]||'#666';
+  const rows=DIMS.map(d=>{const v=(r.adjusted&&r.adjusted[d])||0;return `<tr><td style="padding:7px 10px;border-bottom:1px solid #eee">${DIMMETA[d][LANG]} (${d})</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:${DIMMETA[d].c}">${v}/100</td></tr>`;}).join('');
+  const m=CURRENT_USER.user_metadata||{};
+  const html=`<html><head><meta charset="utf-8"><title>XulqskorAI — ${userName()}</title></head>
+  <body style="font-family:Arial,sans-serif;color:#111;max-width:640px;margin:24px auto;padding:0 20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #F26A21;padding-bottom:12px">
+      <div><div style="font-size:22px;font-weight:800">XulqskorAI</div><div style="color:#666;font-size:13px">${L('Diagnostika natijasi','Результат диагностики','Diagnostic result')}</div></div>
+      <div style="text-align:right;font-size:13px;color:#666">${dt}</div></div>
+    <div style="margin:18px 0"><b>${userName()}</b>${m.phone?' · '+m.phone:''}${m.contact_email?' · '+m.contact_email:''}</div>
+    <div style="display:flex;gap:20px;align-items:center;margin:18px 0;padding:16px;background:#f7f9fc;border-radius:12px">
+      <div style="font-size:46px;font-weight:800">${r.overall}<span style="font-size:18px;color:#888">/100</span></div>
+      <div style="background:${bc};color:#fff;padding:6px 14px;border-radius:20px;font-weight:700">${t('band_'+r.band)}</div>
+      <div style="margin-left:auto;color:#666;font-size:13px">${L('Ishonch','Достоверность','Trust')}: ${r.coeff}</div></div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows}</tbody></table>
+    <p style="color:#999;font-size:11px;margin-top:24px">© XulqskorAI · ${new Date().getFullYear()}</p>
+  </body></html>`;
+  const w=window.open('','_blank');if(!w){toast('Popup blocked');return;}
+  w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),350);
+}
+function userName(){if(!CURRENT_USER)return '';const m=CURRENT_USER.user_metadata||{};return m.full_name||m.phone||m.contact_email||(CURRENT_USER.email||'').split('@')[0];}
 function updateNav(){
   const el=document.getElementById('navAccount');if(!el)return;
   const start=document.getElementById('navStart');
@@ -1055,8 +1084,9 @@ async function renderCabinet(){
   const nm=userName();
   const head=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
      <div><div class="sec-tag" style="margin-bottom:2px">${L('SHAXSIY KABINET','ЛИЧНЫЙ КАБИНЕТ','MY CABINET')}</div>
-     <h2 style="font-size:24px;font-weight:800">${nm}</h2><div class="muted" style="font-size:13px">${CURRENT_USER.email}</div></div>
-     <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div>`;
+     <h2 style="font-size:24px;font-weight:800">${nm}</h2><div class="muted" style="font-size:13px">${(CURRENT_USER.user_metadata||{}).phone||''}${(CURRENT_USER.user_metadata||{}).contact_email?' · '+(CURRENT_USER.user_metadata||{}).contact_email:''}</div></div>
+     <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="pdfBtn" onclick="downloadPDF()">⬇ PDF</button>
+     <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div></div>`;
   if(!data||!data.length){
     b.innerHTML=head+`<div class="card" style="max-width:520px;margin:20px auto;text-align:center">
       <div style="font-size:40px">📊</div><h3 style="font-size:18px;font-weight:800;margin:8px 0 6px">${L('Hali natija yoʻq','Пока нет результатов','No results yet')}</h3>
@@ -1064,7 +1094,7 @@ async function renderCabinet(){
       <button class="btn btn-primary btn-block" onclick="go('auth')">${t('start_diag')}</button></div>`;
     return;
   }
-  const latest=data[0];
+  const latest=data[0];CAB_LATEST=latest;
   const bandColor={A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[latest.band]||'#8FA6C9';
   let dimHtml='';DIMS.forEach(d=>{const m=DIMMETA[d];const v=(latest.adjusted&&latest.adjusted[d])||0;const lvl=v<45?'low':v<=65?'mid':'high';
     dimHtml+=`<div class="dimscore"><div class="top"><span>${m[LANG]} <small class="muted">(${d})</small></span><span style="color:${m.c}">${v}/100 · ${t(lvl)}</span></div><div class="bar"><i style="width:${v}%;background:${m.c}"></i></div></div>`;});
