@@ -303,7 +303,7 @@ table.hist tr:last-child td{border-bottom:0}
 const SUPABASE_URL='https://bzufysuolfbhxhyxxnts.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6dWZ5c3VvbGZiaHhoeXh4bnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjM4OTgsImV4cCI6MjEwMDI5OTg5OH0.PHFvS49SwUxD5CvnrKgUrCeC3g0_l1BkMnyO5noPNg8';
 const SB = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let CURRENT_USER=null;
+let CURRENT_USER=null, CURRENT_PROFILE=null;
 </script>
 </head>
 <body>
@@ -935,7 +935,7 @@ Session.prototype.coefficient=function(){
 /* ============ APP STATE & ROUTER ============ */
 let LANG=localStorage.getItem('xs_lang')||'uz';
 let THEME=localStorage.getItem('xs_theme')||'light';
-let AUTHTYPE='ind', S=null, curItem=null, curReason=null, curOrder=null, selIdx=null, qStart=0, tick=null, verified=false, eriOk=false;
+let AUTHTYPE='ind', S=null, curItem=null, curReason=null, curOrder=null, selIdx=null, qStart=0, tick=null, verified=false, eriOk=false, curStage=1;
 const LOCK_KEY='xs_lastAttempt';
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);if(id==='auth')renderAuth();if(id==='admin')renderAdmin();if(id==='cabinet')renderCabinet();}
 function scrollToId(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});}
@@ -950,6 +950,7 @@ function applyI18n(){
   if(document.getElementById('auth').classList.contains('active'))renderAuth();
   if(document.getElementById('admin').classList.contains('active'))renderAdmin();
   if(document.getElementById('cabinet').classList.contains('active'))renderCabinet();
+  if(document.getElementById('test').classList.contains('active'))paintQuestion();
 }
 function setLang(l){LANG=l;localStorage.setItem('xs_lang',l);applyI18n();}
 function setTheme(x){THEME=x;document.documentElement.setAttribute('data-theme',x);localStorage.setItem('xs_theme',x);document.getElementById('themeBtn').textContent=x==='light'?'🌙':'☀️';var bl=document.getElementById('brandLogo');if(bl)bl.src=x==='light'?LOGO_LIGHT:LOGO_DARK;}
@@ -971,11 +972,14 @@ function setAuthType(x){AUTHTYPE=x;document.getElementById('tabInd').classList.t
 function renderAuth(){
   const b=document.getElementById('authBody');
   if(CURRENT_USER){
-    b.innerHTML=`<div class="eri" style="border-color:var(--teal)"><h5>✔ ${L('Hisobingizga kirdingiz','Вы вошли в аккаунт','Signed in')}</h5>
-       <p class="muted" style="font-size:13px;margin:0">${(CURRENT_USER.user_metadata||{}).phone||userName()}</p></div>
-      <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
-      <button class="btn btn-primary btn-block" onclick="beginTest()">${t('start_diag')}</button>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="authSignOut()">${L('Chiqish','Выйти','Sign out')}</button>`;
+    const vok=isVerified();
+    b.innerHTML=`<div class="eri" style="border-color:${vok?'var(--teal)':'var(--orange)'}"><h5>${vok?'✔ '+L('Hisobingizga kirdingiz','Вы вошли в аккаунт','Signed in'):'⏳ '+L('Tekshiruvda','На проверке','Under review')}</h5>
+       <p class="muted" style="font-size:13px;margin:0">${(CURRENT_USER.user_metadata||{}).phone||userName()}</p></div>`
+    + (vok
+      ? `<label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
+      <button class="btn btn-primary btn-block" onclick="beginTest()">${t('start_diag')}</button>`
+      : `<div class="note" style="margin:14px 0;line-height:1.5">${L('Hisobingiz administrator tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach diagnostikani boshlashingiz mumkin.','Ваш аккаунт ожидает подтверждения администратором. После подтверждения вы сможете пройти диагностику.','Your account is awaiting administrator approval. You can start the diagnostic once verified.')}</div>`)
+    + `<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="authSignOut()">${L('Chiqish','Выйти','Sign out')}</button>`;
     return;
   }
   let html=`<div class="tabs2" style="margin-bottom:16px">
@@ -1013,7 +1017,7 @@ async function authSignup(){
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signUp({email:phoneEmail(phone),password,options:{data:{full_name,phone,contact_email:contact_email||null,org_name,type:AUTHTYPE}}});
   if(error){btn.disabled=false;toast(/registered|exists/i.test(error.message)?L('Bu raqam roʻyxatdan oʻtgan','Этот номер уже зарегистрирован','This number is already registered'):('✕ '+error.message));return;}
-  if(data.session){CURRENT_USER=data.user;toast('✔');updateNav();go('cabinet');}
+  if(data.session){CURRENT_USER=data.user;await loadProfile();toast('✔');updateNav();go('cabinet');}
   else {AUTHMODE='login';renderAuth();}
 }
 async function authLogin(){
@@ -1023,9 +1027,15 @@ async function authLogin(){
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signInWithPassword({email:phoneEmail(phone),password});
   if(error){btn.disabled=false;toast(L('Telefon yoki parol notoʻgʻri','Неверный телефон или пароль','Wrong phone or password'));return;}
-  CURRENT_USER=data.user;toast('✔');updateNav();go('cabinet');
+  CURRENT_USER=data.user;await loadProfile();toast('✔');updateNav();go('cabinet');
 }
-async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;updateNav();renderAuth();}
+async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;CURRENT_PROFILE=null;updateNav();renderAuth();}
+async function loadProfile(){
+  if(!CURRENT_USER){CURRENT_PROFILE=null;return null;}
+  const {data}=await SB.from('profiles').select('verified,role,full_name').eq('id',CURRENT_USER.id).maybeSingle();
+  CURRENT_PROFILE=data||null;return CURRENT_PROFILE;
+}
+function isVerified(){return !!(CURRENT_PROFILE&&CURRENT_PROFILE.verified);}
 async function saveResult(p){
   try{
     if(!CURRENT_USER){const {data}=await SB.auth.getUser();CURRENT_USER=data&&data.user||null;}
@@ -1087,11 +1097,13 @@ async function renderCabinet(){
      <h2 style="font-size:24px;font-weight:800">${nm}</h2><div class="muted" style="font-size:13px">${(CURRENT_USER.user_metadata||{}).phone||''}${(CURRENT_USER.user_metadata||{}).contact_email?' · '+(CURRENT_USER.user_metadata||{}).contact_email:''}</div></div>
      <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="pdfBtn" onclick="downloadPDF()">⬇ PDF</button>
      <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div></div>`;
+  const vok=isVerified();
+  const pend=vok?'':`<div class="validity review" style="max-width:640px;margin:0 auto 16px">⏳ ${L('Hisobingiz administrator tomonidan tasdiqlanishini kutmoqda.','Ваш аккаунт ожидает подтверждения администратором.','Your account is awaiting administrator approval.')}</div>`;
   if(!data||!data.length){
-    b.innerHTML=head+`<div class="card" style="max-width:520px;margin:20px auto;text-align:center">
+    b.innerHTML=head+pend+`<div class="card" style="max-width:520px;margin:20px auto;text-align:center">
       <div style="font-size:40px">📊</div><h3 style="font-size:18px;font-weight:800;margin:8px 0 6px">${L('Hali natija yoʻq','Пока нет результатов','No results yet')}</h3>
-      <p class="muted" style="font-size:14px;margin-bottom:18px">${L('Diagnostikadan oʻtib, natijangizni koʻring.','Пройдите диагностику, чтобы увидеть результат.','Take the diagnostic to see your score.')}</p>
-      <button class="btn btn-primary btn-block" onclick="go('auth')">${t('start_diag')}</button></div>`;
+      <p class="muted" style="font-size:14px;margin-bottom:18px">${vok?L('Diagnostikadan oʻtib, natijangizni koʻring.','Пройдите диагностику, чтобы увидеть результат.','Take the diagnostic to see your score.'):L('Tasdiqlangach diagnostikani boshlashingiz mumkin.','После подтверждения вы сможете пройти диагностику.','You can start once your account is verified.')}</p>
+      ${vok?`<button class="btn btn-primary btn-block" onclick="go('auth')">${t('start_diag')}</button>`:''}</div>`;
     return;
   }
   const latest=data[0];CAB_LATEST=latest;
@@ -1103,7 +1115,7 @@ async function renderCabinet(){
      <td><b style="color:${({A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[r.band])||'#888'}">${r.overall}/100</b></td>
      <td><span class="band" style="background:${({A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[r.band])||'#888'};color:#fff;font-size:11px;padding:3px 10px">${t('band_'+r.band)}</span></td>
      <td class="muted" style="font-size:12px">${r.qs_count} ${t('q_word').toLowerCase()}</td></tr>`).join('')}</tbody></table></div></div>`:'';
-  b.innerHTML=head+`
+  b.innerHTML=head+pend+`
    <div class="res-hero" style="margin-bottom:18px">
      <div><div class="muted" style="color:#C7D6EE;font-weight:700;margin-bottom:6px">${t('overall')} · ${new Date(latest.created_at).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ')}</div>
        <div class="score-big">${latest.overall}<small>/100</small></div>
@@ -1129,6 +1141,7 @@ async function accountLock(){
 }
 async function beginTest(){
   if(!CURRENT_USER){toast(L('Avval hisobingizga kiring','Сначала войдите в аккаунт','Please sign in first'));return;}
+  if(!isVerified()){toast(L('Hisobingiz hali tasdiqlanmagan','Аккаунт ещё не подтверждён','Account not verified yet'));return;}
   const c=document.getElementById('consent');if(c&&!c.checked){toast(t('consent'));return;}
   const locked=await accountLock();
   if(locked){go('results');renderLocked(locked);return;}
@@ -1140,21 +1153,11 @@ function nextQuestion(){
   const [iid,reason]=S.next();
   if(!iid){finishTest();return;}
   curItem=ITEMS[iid];curReason=reason;selIdx=null;
-  const m=curItem, isLeg=S.userType==='leg';
-  const tr=(LANG!=='en'&&QT[LANG]&&QT[LANG][iid])?QT[LANG][iid]:null;
   document.getElementById('qNum').textContent=S.path.length+1;
-  document.getElementById('qText').textContent=tr?tr.q:((isLeg&&m.qe)?m.qe:m.q);
   // shuffle displayed option order: kills 'always pick A' cheat-sheets and
   // makes position-streak detection meaningful (weights stay untouched)
-  curOrder=m.choices.map((_,i)=>i);
+  curOrder=curItem.choices.map((_,i)=>i);
   for(let i=curOrder.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[curOrder[i],curOrder[j]]=[curOrder[j],curOrder[i]];}
-  const ow=document.getElementById('optWrap');ow.innerHTML='';
-  curOrder.forEach((ri,pos)=>{
-    const c=m.choices[ri];
-    const txt=(tr&&tr.c[ri])?tr.c[ri]:((isLeg&&c.ent)?c.ent:c.ind);
-    ow.insertAdjacentHTML('beforeend',
-     `<button class="opt" data-idx="${pos}" onclick="selectOpt(${pos})"><span class="lk">${'ABCD'[pos]}</span><span>${txt}</span></button>`);
-  });
   document.getElementById('nextBtn').disabled=true;
   // progress: MONOTONIC (never moves backwards) with gamified milestones —
   // reveals nothing about the adaptive routing logic
@@ -1164,12 +1167,24 @@ function nextQuestion(){
   S.uiProg=Math.max(S.uiProg||0.05,raw);
   document.getElementById('progFill').style.width=(S.uiProg*100).toFixed(0)+'%';
   [[1,0.25],[2,0.5],[3,0.75]].forEach(mp=>{const el=document.getElementById('pm'+mp[0]);if(el)el.classList.toggle('lit',S.uiProg>=mp[1]);});
-  const stg=S.uiProg>=0.75?4:S.uiProg>=0.5?3:S.uiProg>=0.25?2:1;
-  document.getElementById('qTag').textContent='★ '+t('g_stage')+' '+stg+'/4';
+  curStage=S.uiProg>=0.75?4:S.uiProg>=0.5?3:S.uiProg>=0.25?2:1;
   document.getElementById('qStyle').textContent='';
-  document.getElementById('minHint').textContent=t(stg>=4?'g_e3':stg===3?'g_e2':stg===2?'g_e1':'g_e0');
+  paintQuestion();
   // per-question timer
   qStart=Date.now();updateTimer();clearInterval(tick);tick=setInterval(updateTimer,250);
+}
+// Repaints the CURRENT question + options in the active language (preserves order & selection)
+function paintQuestion(){
+  if(!curItem||!curOrder)return;
+  const m=curItem, isLeg=S&&S.userType==='leg';
+  const tr=(LANG!=='en'&&QT[LANG]&&QT[LANG][m.id])?QT[LANG][m.id]:null;
+  document.getElementById('qText').textContent=tr?tr.q:((isLeg&&m.qe)?m.qe:m.q);
+  const ow=document.getElementById('optWrap');ow.innerHTML='';
+  curOrder.forEach((ri,pos)=>{const c=m.choices[ri];const txt=(tr&&tr.c[ri])?tr.c[ri]:((isLeg&&c.ent)?c.ent:c.ind);
+    ow.insertAdjacentHTML('beforeend',`<button class="opt${selIdx===pos?' sel':''}" data-idx="${pos}" onclick="selectOpt(${pos})"><span class="lk">${'ABCD'[pos]}</span><span>${txt}</span></button>`);});
+  const stg=curStage||1;
+  document.getElementById('qTag').textContent='★ '+t('g_stage')+' '+stg+'/4';
+  document.getElementById('minHint').textContent=t(stg>=4?'g_e3':stg===3?'g_e2':stg===2?'g_e1':'g_e0');
 }
 function updateTimer(){
   const s=(Date.now()-qStart)/1000;
@@ -1354,9 +1369,10 @@ function boot(){
   document.getElementById('themeBtn').onclick=()=>setTheme(THEME==='light'?'dark':'light');
   document.querySelectorAll('#langSeg button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   applyI18n();
-  SB.auth.getSession().then(({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;updateNav();
-    if(document.getElementById('auth').classList.contains('active'))renderAuth();});
-  SB.auth.onAuthStateChange((_e,session)=>{CURRENT_USER=session?session.user:null;updateNav();});
+  SB.auth.getSession().then(async ({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;await loadProfile();updateNav();
+    if(document.getElementById('auth').classList.contains('active'))renderAuth();
+    if(document.getElementById('cabinet').classList.contains('active'))renderCabinet();});
+  SB.auth.onAuthStateChange(async (_e,session)=>{CURRENT_USER=session?session.user:null;await loadProfile();updateNav();});
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>
