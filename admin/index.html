@@ -74,6 +74,17 @@ table.adm tr:hover td{background:#18243c}
 .tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:sp 1s linear infinite;margin:40px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.kpi2{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 16px 14px;position:relative;overflow:hidden;transition:.2s}
+.kpi2:hover{transform:translateY(-2px);border-color:#33456b}
+.kpi2::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc,#F26A21)}
+.kpi2 .top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.kpi2 .lab{font-size:12px;color:var(--muted);font-weight:600;line-height:1.3}
+.kpi2 .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+.kpi2 .val{font-size:30px;font-weight:800;line-height:1}
+.kpi2 .sub{font-size:11.5px;margin-top:7px;font-weight:600}
+.chart-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;margin-bottom:16px}
+.chartbox{position:relative;height:220px;margin-top:6px}
 .modal-bg{position:fixed;inset:0;background:rgba(6,10,18,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
 .modal-bg.show{display:flex}
 .modal-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;max-width:560px;width:100%;max-height:88vh;overflow:auto}
@@ -81,6 +92,7 @@ table.adm th:hover{color:var(--text)}
 @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.abar .nm{width:120px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -169,16 +181,7 @@ function render(){
   const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar']];
   let body='';
   if(TAB==='dash'){
-    body=`<div class="kpi-grid">
-      <div class="kpi"><div class="lab">Roʻyxatdan oʻtganlar</div><div class="val" style="color:var(--orange)">${users.length}</div><div class="sub" style="color:${pending?'#F58634':'var(--muted)'}">${pending} tasdiq kutmoqda</div></div>
-      <div class="kpi"><div class="lab">Test topshirganlar</div><div class="val">${total}</div></div>
-      <div class="kpi"><div class="lab">O‘rtacha ball</div><div class="val" style="color:var(--teal2)">${avg}<span style="font-size:15px">/100</span></div></div>
-      <div class="kpi"><div class="lab">Tekshiruvda</div><div class="val" style="color:var(--danger)">${rev}</div><div class="sub muted">${total?Math.round(rev/total*100):0}%</div></div>
-    </div>
-    <div class="two-col">
-      <div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha</h3>${dimBars(D)}</div>
-      <div class="adm-card"><h3>Tekshiruv navbati · kutilmoqda (${revPending.length})</h3>${revPending.length?revPending.slice(0,5).map(reviewCard).join(''):'<p class="muted">Boʻsh 🎉</p>'}${revPending.length>5?`<div style="text-align:center;margin-top:8px"><button class="btn btn-ghost" onclick="setTab('review')">Barchasini koʻrish →</button></div>`:''}</div>
-    </div>`;
+    body=dashBody();
   }else if(TAB==='users'){
     body=`<div class="adm-card"><h3>Roʻyxatdan oʻtgan foydalanuvchilar (${users.length})</h3>
       <div style="overflow-x:auto"><table class="adm"><thead><tr>
@@ -209,8 +212,94 @@ function render(){
     </div>
     <div class="tabs">${tabs.map(([k,l])=>`<button class="${TAB===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('')}</div>
     ${body}`;
+  if(TAB==='dash') requestAnimationFrame(initDashCharts);
 }
-function setTab(t){TAB=t;AS.page=1;render();}
+function setTab(t){if(t!==TAB)destroyCharts();TAB=t;AS.page=1;render();}
+/* ================= PROFESSIONAL DASHBOARD ================= */
+let DASH=null, CHARTS={};
+function kpi(acc,ic,lab,val,sub,subColor){
+  return `<div class="kpi2" style="--acc:${acc}">
+    <div class="top"><span class="lab">${lab}</span><span class="ic" style="background:${acc}22;color:${acc}">${ic}</span></div>
+    <div class="val">${val}</div>${sub!=null?`<div class="sub" style="color:${subColor||'var(--muted)'}">${sub}</div>`:''}</div>`;
+}
+function dashBody(){
+  const D=ROWS||[];
+  const users=PROFILES.filter(p=>p.role!=='admin');
+  const registered=users.length, verified=users.filter(u=>u.verified).length, pendingVerify=registered-verified;
+  const tested=D.length, testedIds=new Set(D.map(x=>x.user_id));
+  const completion=registered?Math.round(tested/registered*100):0;
+  const avgScore=tested?Math.round(D.reduce((s,x)=>s+(x.overall||0),0)/tested):0;
+  const avgCoeff=tested?(D.reduce((s,x)=>s+(+x.coeff||0),0)/tested):0;
+  const bands={A:0,B:0,C:0,D:0}; D.forEach(x=>{if(bands[x.band]!=null)bands[x.band]++;});
+  const highPct=tested?Math.round((bands.A+bands.B)/tested*100):0;
+  const flagged=D.filter(x=>x.review).length;
+  const flaggedPct=tested?Math.round(flagged/tested*100):0;
+  const revPending=D.filter(x=>x.review&&(!x.review_status||x.review_status==='pending'));
+  const legCount=users.filter(u=>u.type==='leg').length, indCount=registered-legCount;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const days=[]; for(let i=13;i>=0;i--){const d=new Date(today); d.setDate(d.getDate()-i); days.push(d);}
+  const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const regBy={}, testBy={};
+  users.forEach(u=>{const k=(u.created_at||'').slice(0,10); if(k)regBy[k]=(regBy[k]||0)+1;});
+  D.forEach(x=>{const k=(x.created_at||'').slice(0,10); if(k)testBy[k]=(testBy[k]||0)+1;});
+  const labels=days.map(d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'}));
+  const regSeries=days.map(d=>regBy[key(d)]||0), testSeries=days.map(d=>testBy[key(d)]||0);
+  const weekAgo=new Date(today); weekAgo.setDate(weekAgo.getDate()-7);
+  const newRegWeek=users.filter(u=>u.created_at&&new Date(u.created_at)>=weekAgo).length;
+  const newTestWeek=D.filter(x=>x.created_at&&new Date(x.created_at)>=weekAgo).length;
+  const dimAvg=DIMS.map(d=>{const v=D.map(x=>(x.adjusted&&x.adjusted[d])||0); return v.length?Math.round(v.reduce((s,a)=>s+a,0)/v.length):0;});
+  DASH={bands,labels,regSeries,testSeries,indCount,legCount,dimAvg,trustOk:tested-flagged,trustFlag:flagged};
+  const recent=D.slice(0,6);
+  const recentTable=recent.length?`<div style="overflow-x:auto"><table class="adm"><tbody>${recent.map(x=>`<tr style="cursor:pointer" onclick="showDetail('${x.id}')">
+      <td><b>${esc(x.full_name||'—')}</b><div class="muted" style="font-size:11px">${esc(x.phone||'')}</div></td>
+      <td style="text-align:center"><b style="color:${bandColor(x.band)}">${x.overall??'—'}</b></td>
+      <td><span class="pill" style="background:${bandColor(x.band)}22;color:${bandColor(x.band)}">${x.band||'—'}</span></td>
+      <td class="muted" style="font-size:12px">${fmtDate(x.created_at)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Hozircha yoʻq</p>';
+  return `
+  <div class="kpi-row">
+    ${kpi('#F26A21','👥','Roʻyxatdan oʻtganlar',registered,`+${newRegWeek} shu hafta`,'#F58634')}
+    ${kpi('#17A2A0','📝','Test topshirganlar',tested,`${completion}% yakunlangan`)}
+    ${kpi('#25B8AE','🎯','Oʻrtacha ball',`${avgScore}<span style="font-size:14px;color:var(--muted)">/100</span>`)}
+    ${kpi('#294B85','🛡️','Oʻrtacha ishonch',avgCoeff.toFixed(2))}
+    ${kpi('#25B8AE','⭐','Yuqori daraja (A/B)',`${highPct}%`,`${bands.A+bands.B} ta arizachi`)}
+    ${kpi('#E23B3B','⚠️','Tekshiruvda',revPending.length,`${flaggedPct}% belgilangan`,revPending.length?'#f08a8a':'var(--muted)')}
+    ${kpi('#F58634','⏳','Tasdiq kutmoqda',pendingVerify,`${verified} tasdiqlangan`,pendingVerify?'#F58634':'var(--muted)')}
+    ${kpi('#17A2A0','📈','Shu hafta faollik',newTestWeek,`${newRegWeek} yangi roʻyxat`)}
+  </div>
+  <div class="chart-row">
+    <div class="adm-card"><h3>Baholar taqsimoti</h3><div class="chartbox"><canvas id="chBands"></canvas></div></div>
+    <div class="adm-card"><h3>Arizachilar turi</h3><div class="chartbox"><canvas id="chType"></canvas></div></div>
+    <div class="adm-card"><h3>Ishonch holati</h3><div class="chartbox"><canvas id="chTrust"></canvas></div></div>
+  </div>
+  <div class="adm-card"><h3>Soʻnggi 14 kun faolligi</h3><div class="chartbox" style="height:270px"><canvas id="chAct"></canvas></div></div>
+  <div class="two-col">
+    <div class="adm-card"><h3>Xulq oʻlchamlari profili</h3><div class="chartbox" style="height:300px"><canvas id="chDims"></canvas></div></div>
+    <div class="adm-card"><h3>Oʻlchamlar boʻyicha oʻrtacha</h3>${dimBars(D)}</div>
+  </div>
+  <div class="two-col">
+    <div class="adm-card"><h3>Soʻnggi arizachilar</h3>${recentTable}</div>
+    <div class="adm-card"><h3>Tekshiruv navbati · kutilmoqda (${revPending.length})</h3>${revPending.length?revPending.slice(0,4).map(reviewCard).join(''):'<p class="muted">Boʻsh 🎉</p>'}${revPending.length>4?`<div style="text-align:center;margin-top:8px"><button class="btn btn-ghost" onclick="setTab('review')">Barchasini koʻrish →</button></div>`:''}</div>
+  </div>`;
+}
+function destroyCharts(){Object.values(CHARTS).forEach(c=>{try{c.destroy();}catch(e){}}); CHARTS={};}
+function initDashCharts(){
+  if(typeof Chart==='undefined'||!DASH)return;
+  destroyCharts();
+  Chart.defaults.color='#8FA6C9'; Chart.defaults.font.family='Inter,system-ui,sans-serif'; Chart.defaults.font.size=11;
+  Chart.defaults.responsive=true; Chart.defaults.maintainAspectRatio=false;
+  const bc=['#17A2A0','#25B8AE','#F58634','#E23B3B'];
+  const el=id=>document.getElementById(id);
+  const dough=(id,labels,data,colors)=>{const c=el(id); if(c)CHARTS[id]=new Chart(c,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#172338',borderWidth:2}]},options:{cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:12,usePointStyle:true}}}}});};
+  dough('chBands',['A','B','C','D'],[DASH.bands.A,DASH.bands.B,DASH.bands.C,DASH.bands.D],bc);
+  dough('chType',['Jismoniy','Yuridik'],[DASH.indCount,DASH.legCount],['#294B85','#17A2A0']);
+  dough('chTrust',['Ishonchli','Belgilangan'],[DASH.trustOk,DASH.trustFlag],['#25B8AE','#E23B3B']);
+  if(el('chAct'))CHARTS.chAct=new Chart(el('chAct'),{data:{labels:DASH.labels,datasets:[
+      {type:'bar',label:'Roʻyxatdan oʻtish',data:DASH.regSeries,backgroundColor:'#F26A21aa',borderRadius:4,maxBarThickness:22},
+      {type:'line',label:'Test topshirish',data:DASH.testSeries,borderColor:'#17A2A0',backgroundColor:'#17A2A0',tension:.35,pointRadius:2,borderWidth:2}]},
+    options:{interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#ffffff12'},ticks:{precision:0}}},plugins:{legend:{position:'bottom',labels:{boxWidth:12,usePointStyle:true}}}}});
+  if(el('chDims'))CHARTS.chDims=new Chart(el('chDims'),{type:'radar',data:{labels:DIMS.map(d=>DIMMETA[d].n),datasets:[{label:'Oʻrtacha',data:DASH.dimAvg,borderColor:'#F26A21',backgroundColor:'#F26A2130',pointBackgroundColor:'#F26A21',borderWidth:2}]},
+    options:{scales:{r:{suggestedMin:0,suggestedMax:100,grid:{color:'#ffffff18'},angleLines:{color:'#ffffff18'},pointLabels:{color:'#C7D6EE',font:{size:10}},ticks:{display:false,stepSize:25}}},plugins:{legend:{display:false}}}});
+}
 /* ---- applicants: filter / sort / paginate / export / detail ---- */
 let AS={sort:'created_at',dir:-1,q:'',from:'',to:'',page:1,per:25};
 function sortVal(x,key){
