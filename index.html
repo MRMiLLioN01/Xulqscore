@@ -1046,6 +1046,26 @@ async function loadProfile(){
 function isVerified(){return !!(CURRENT_PROFILE&&CURRENT_PROFILE.verified);}
 /* ============ ACCOUNT NAV + CABINET ============ */
 let CAB_LATEST=null;
+async function shareScore(){
+  const btn=document.getElementById('shareBtn'); if(btn){btn.disabled=true;btn.textContent='…';}
+  const {data,error}=await SB.rpc('create_share_code');
+  if(btn){btn.disabled=false;btn.innerHTML='🔑 '+L('Ulashish','Поделиться','Share');}
+  if(error){toast(/NO_RESULT/.test(error.message||'')?L('Avval testdan oting','Сначала пройдите тест','Take the test first'):'✕ '+error.message);return;}
+  const code=data.code;
+  let m=document.getElementById('shareModal');
+  if(!m){m=document.createElement('div');m.id='shareModal';m.className='modal-bg';document.body.appendChild(m);}
+  m.classList.add('show');
+  m.innerHTML=`<div class="modal" onclick="event.stopPropagation()" style="max-width:440px;text-align:center">
+    <div style="font-size:34px">🔑</div>
+    <h3 style="margin:8px 0 6px">${L('Rozilik kodi','Код согласия','Consent code')}</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:16px">${L('Bu kodni faqat ishonchli moliya tashkilotiga bering. U 24 soat amal qiladi va natijangizni bir marta koʻrsatadi.','Передайте этот код только доверенной финансовой организации. Он действует 24 часа.','Give this code only to a trusted lender. It is valid for 24 hours.')}</p>
+    <div style="font-size:34px;font-weight:800;letter-spacing:.28em;background:var(--surface2);border:1.5px dashed var(--border);border-radius:14px;padding:16px 10px;margin-bottom:14px">${code}</div>
+    <button class="btn btn-primary btn-block" onclick="navigator.clipboard&&navigator.clipboard.writeText('${code}');toast('✔')">${L('Nusxa olish','Скопировать','Copy')}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:8px" onclick="closeShare()">${L('Yopish','Закрыть','Close')}</button>
+  </div>`;
+  m.onclick=closeShare;
+}
+function closeShare(){const m=document.getElementById('shareModal');if(m)m.classList.remove('show');}
 function downloadPDF(){
   const r=CAB_LATEST;if(!r){toast(L('Natija yoʻq','Нет результата','No result'));return;}
   const dt=new Date(r.created_at).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ');
@@ -1095,7 +1115,8 @@ async function renderCabinet(){
   const head=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
      <div><div class="sec-tag" style="margin-bottom:2px">${L('SHAXSIY KABINET','ЛИЧНЫЙ КАБИНЕТ','MY CABINET')}</div>
      <h2 style="font-size:24px;font-weight:800">${nm}</h2><div class="muted" style="font-size:13px">${(CURRENT_USER.user_metadata||{}).phone||''}${(CURRENT_USER.user_metadata||{}).contact_email?' · '+(CURRENT_USER.user_metadata||{}).contact_email:''}</div></div>
-     <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="pdfBtn" onclick="downloadPDF()">⬇ PDF</button>
+     <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="shareBtn" onclick="shareScore()">🔑 ${L('Ulashish','Поделиться','Share')}</button>
+     <button class="btn btn-ghost" id="pdfBtn" onclick="downloadPDF()">⬇ PDF</button>
      <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div></div>`;
   const vok=isVerified();
   const pend=vok?'':`<div class="validity review" style="max-width:640px;margin:0 auto 16px">⏳ ${L('Hisobingiz administrator tomonidan tasdiqlanishini kutmoqda.','Ваш аккаунт ожидает подтверждения администратором.','Your account is awaiting administrator approval.')}</div>`;

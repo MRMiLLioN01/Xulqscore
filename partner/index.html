@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>XulqskorAI — Hamkor paneli</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0E1726;--card:#172338;--surface:#152034;--border:#26344f;--muted:#8FA6C9;--text:#EAF1FB;
+ --navy:#1E3A6A;--navy3:#294B85;--orange:#F26A21;--teal:#17A2A0;--teal2:#25B8AE;--danger:#E23B3B;
+ --grad:linear-gradient(135deg,#F26A21,#F58634)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;color:var(--text);min-height:100vh;
+ background:radial-gradient(1200px 600px at 80% -10%,#1b2b49 0%,transparent 60%),
+ radial-gradient(900px 500px at -10% 20%,#16233c 0%,transparent 55%),var(--bg)}
+.wrap{max-width:820px;margin:0 auto;padding:24px 18px}
+.btn{border:0;border-radius:12px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:.2s}
+.btn-primary{background:var(--grad);color:#fff}.btn-navy{background:var(--navy);color:#fff}
+.btn-ghost{background:transparent;border:1.4px solid var(--border);color:var(--text)}
+.btn-block{width:100%;display:block}.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.field input{width:100%;padding:12px 13px;border-radius:11px;border:1.4px solid var(--border);background:#0f1a2e;color:var(--text);font-size:15px;font-family:inherit}
+.field input:focus{outline:0;border-color:var(--navy3)}
+.center{max-width:420px;margin:7vh auto}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;justify-content:center}
+.brand b{font-size:19px;font-weight:800}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--orange)}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
+.tag{font-size:11px;letter-spacing:.14em;font-weight:800;color:var(--orange)}
+.muted{color:var(--muted)}
+.note{font-size:12px;color:var(--muted);text-align:center;margin-top:14px}
+.err{background:#e23b3b1a;border:1px solid #e23b3b55;color:#f5a3a3;border-radius:11px;padding:11px;font-size:13.5px;margin-bottom:14px}
+.code-input{letter-spacing:.34em;text-transform:uppercase;font-size:24px!important;text-align:center;font-weight:800}
+.res-hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap;background:linear-gradient(135deg,#16233c,#1b2b49);
+ border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px}
+.score{font-size:56px;font-weight:800;line-height:1}
+.band{padding:6px 14px;border-radius:20px;font-weight:800;font-size:13px;color:#fff}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+.abar{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.abar .nm{width:190px;font-size:13px}
+.abar .tr{flex:1;height:9px;background:#0f1a2e;border-radius:6px;overflow:hidden}
+.abar .tr i{display:block;height:100%;border-radius:6px}
+.abar .vl{width:34px;text-align:right;font-weight:700;font-size:13px}
+.spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:sp 1s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+h3{font-size:16px;font-weight:800;margin-bottom:14px}
+@media(max-width:600px){.abar .nm{width:120px}.score{font-size:44px}}
+@media print{body{background:#fff;color:#000}.no-print{display:none!important}.card,.res-hero{border-color:#ccc;background:#fff;color:#000}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const SUPABASE_URL='https://bzufysuolfbhxhyxxnts.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6dWZ5c3VvbGZiaHhoeXh4bnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjM4OTgsImV4cCI6MjEwMDI5OTg5OH0.PHFvS49SwUxD5CvnrKgUrCeC3g0_l1BkMnyO5noPNg8';
+const SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const DIMS=["CON","INT","SC","LOC","MON","PLN"];
+const DIMMETA={CON:{c:"#294B85",n:"Mas'uliyat va tartib"},INT:{c:"#F26A21",n:"Halollik"},SC:{c:"#17A2A0",n:"O'zini tuta bilish"},LOC:{c:"#25B8AE",n:"Hayotini nazorat qilish"},MON:{c:"#1E3A6A",n:"Pulni boshqarish"},PLN:{c:"#F58634",n:"Rejalashtirish"}};
+const app=document.getElementById('app'), $=id=>document.getElementById(id);
+let ME=null, LAST=null;
+const esc=s=>(s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const bandColor=b=>({A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[b]||'#8FA6C9');
+const fmtDate=d=>{try{return new Date(d).toLocaleDateString('en-GB');}catch(e){return d||'—';}};
+
+function loginView(msg){
+  app.innerHTML=`<div class="center"><div class="brand"><span class="dot"></span><b>XulqskorAI · Hamkor</b></div>
+   <div class="card">
+     <h2 style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px">Hamkor paneli</h2>
+     <p class="muted" style="text-align:center;font-size:13px;margin-bottom:20px">Moliya tashkilotlari uchun</p>
+     ${msg?`<div class="err">${esc(msg)}</div>`:''}
+     <div class="field"><label>Email</label><input id="email" type="email" placeholder="demo@partner.xulqscore.uz"></div>
+     <div class="field"><label>Parol</label><input id="password" type="password" placeholder="••••••••"></div>
+     <button class="btn btn-navy btn-block" id="loginBtn" onclick="doLogin()">Kirish</button>
+     <div class="note">Faqat tasdiqlangan hamkor hisoblari kira oladi.</div>
+   </div></div>`;
+  const p=$('password'); if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+}
+function loadingView(){app.innerHTML='<div class="spin"></div>';}
+async function doLogin(){
+  const email=($('email').value||'').trim(), password=$('password').value||'';
+  if(!email||!password){loginView('Email va parolni kiriting');return;}
+  const b=$('loginBtn'); b.disabled=true; b.textContent='…';
+  const {data,error}=await SB.auth.signInWithPassword({email,password});
+  if(error){loginView('✕ Email yoki parol notoʻgʻri');return;}
+  await afterAuth(data.user);
+}
+async function doLogout(){await SB.auth.signOut();ME=null;LAST=null;loginView();}
+async function afterAuth(user){
+  loadingView();
+  const {data:prof}=await SB.from('profiles').select('role,full_name,org_name').eq('id',user.id).maybeSingle();
+  if(!prof||prof.role!=='partner'){
+    app.innerHTML=`<div class="center"><div class="card" style="text-align:center">
+      <div style="font-size:40px">⛔</div>
+      <h2 style="font-size:19px;font-weight:800;margin:8px 0">Ruxsat yoʻq</h2>
+      <p class="muted" style="font-size:13.5px;margin-bottom:18px">Bu hisob (${esc(user.email)}) hamkor emas.</p>
+      <button class="btn btn-ghost btn-block" onclick="doLogout()">Chiqish</button></div></div>`;
+    return;
+  }
+  ME={id:user.id,name:prof.full_name,org:prof.org_name};
+  lookupView();
+}
+function lookupView(msg){
+  app.innerHTML=`
+  <div class="topbar no-print">
+    <div><div class="tag">HAMKOR PANELI</div>
+      <h1 style="font-size:23px;font-weight:800">${esc(ME.org||ME.name||'Hamkor')}</h1></div>
+    <button class="btn btn-ghost" onclick="doLogout()">Chiqish</button>
+  </div>
+  <div class="card no-print" style="max-width:460px;margin:0 auto">
+    <h3>Ballni tekshirish</h3>
+    <p class="muted" style="font-size:13px;margin-bottom:16px">Arizachi oʻz kabinetidan bergan 6 belgili rozilik kodini kiriting. Kod 24 soat amal qiladi va har bir koʻrish qayd etiladi.</p>
+    ${msg?`<div class="err">${esc(msg)}</div>`:''}
+    <div class="field"><label>Rozilik kodi</label>
+      <input id="code" class="code-input" maxlength="6" placeholder="ABC123" autocomplete="off"></div>
+    <button class="btn btn-primary btn-block" id="goBtn" onclick="doLookup()">Koʻrish</button>
+  </div>
+  <div id="out"></div>`;
+  const c=$('code');
+  c.addEventListener('input',()=>{c.value=c.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
+  c.addEventListener('keydown',e=>{if(e.key==='Enter')doLookup();});
+  c.focus();
+}
+async function doLookup(){
+  const code=($('code').value||'').trim().toUpperCase();
+  if(code.length!==6){lookupView('Kod 6 belgidan iborat boʻlishi kerak');return;}
+  const b=$('goBtn'); b.disabled=true; b.textContent='…';
+  const {data,error}=await SB.rpc('partner_lookup',{p_code:code});
+  b.disabled=false; b.textContent='Koʻrish';
+  if(error){
+    const m=(error.message||'');
+    lookupView(/INVALID_CODE/.test(m)?'Kod notoʻgʻri, muddati oʻtgan yoki bekor qilingan.'
+      :/NOT_PARTNER/.test(m)?'Bu hisob hamkor emas.':'Xato: '+m);
+    return;
+  }
+  LAST=data; renderResult(data);
+}
+function renderResult(r){
+  const adj=r.adjusted||{};
+  const bars=DIMS.map(d=>`<div class="abar"><div class="nm">${DIMMETA[d].n}</div>
+    <div class="tr"><i style="width:${adj[d]||0}%;background:${DIMMETA[d].c}"></i></div>
+    <div class="vl">${adj[d]??'—'}</div></div>`).join('');
+  const trust=r.review
+    ? `<span class="pill" style="background:#e23b3b22;color:#f08a8a">Tekshiruv tavsiya etiladi · ${r.coeff}</span>`
+    : `<span class="pill" style="background:#17a2a022;color:#3ec7c2">Ishonchli · ${r.coeff}</span>`;
+  $('out').innerHTML=`
+   <div style="max-width:620px;margin:20px auto 0">
+     <div class="res-hero">
+       <div><div class="muted" style="font-size:12.5px;font-weight:700;margin-bottom:4px">UMUMIY BALL</div>
+         <div class="score" style="color:${bandColor(r.band)}">${r.overall}<span style="font-size:18px;color:var(--muted)">/100</span></div>
+         <div style="margin-top:10px"><span class="band" style="background:${bandColor(r.band)}">${r.band} daraja</span></div>
+       </div>
+       <div style="flex:1;min-width:200px">
+         <div style="font-size:18px;font-weight:800">${esc(r.full_name||'—')}</div>
+         <div class="muted" style="font-size:13px">${esc(r.phone||'')}${r.org_name?' · '+esc(r.org_name):''}</div>
+         <div class="muted" style="font-size:13px;margin-top:6px">${r.type==='leg'?'Yuridik shaxs':'Jismoniy shaxs'} · ${r.qs_count} savol · ${fmtDate(r.taken_at)}</div>
+         <div style="margin-top:10px">${trust}</div>
+       </div>
+     </div>
+     <div class="card"><h3>Xulq oʻlchamlari</h3>${bars}</div>
+     <div class="card" style="margin-top:14px;font-size:13px;color:var(--muted)">
+       ℹ️ Ushbu ball — kredit qarori uchun <b>qoʻshimcha signal</b>, yakuniy qaror emas. Koʻrish vaqti qayd etildi va arizachi uni oʻz kabinetida koʻra oladi.
+     </div>
+     <div class="no-print" style="display:flex;gap:8px;margin-top:14px">
+       <button class="btn btn-ghost" onclick="window.print()">🖨 Chop etish</button>
+       <button class="btn btn-ghost" onclick="lookupView()">← Yangi tekshiruv</button>
+     </div>
+   </div>`;
+}
+(async()=>{
+  loadingView();
+  const {data}=await SB.auth.getSession();
+  if(data&&data.session)await afterAuth(data.session.user); else loginView();
+})();
+</script>
+</body>
+</html>
