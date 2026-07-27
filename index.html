@@ -878,7 +878,7 @@ function Session(userType){
   this.scores={};this.counts={};DIMS.forEach(d=>{this.scores[d]=50;this.counts[d]=0;});
   this.asked=new Set();this.path=[];this.pending=null;this.lastChange={};this.recent=[];
   this.seedOrder=rngShuffle(SEED,(Date.now()%99991)+7);
-  this.choiceHist=[];this.times=[];this.primaryW={};DIMS.forEach(d=>this.primaryW[d]=[]);
+  this.choiceHist=[];this.times=[];this.log=[];this.primaryW={};DIMS.forEach(d=>this.primaryW[d]=[]);
   this.desirable=0;this.n=0;this.warned={fast:0,streak:0,contra:0};
 }
 Session.prototype.needScore=function(d){return Math.max(0,MIN_EVID-this.counts[d])/MIN_EVID + (1-Math.abs(this.scores[d]-50)/50);};
@@ -902,6 +902,7 @@ Session.prototype.next=function(){
   return rest.length?[rest[Math.floor(Math.random()*rest.length)],"fallback"]:[null,"done"];
 };
 Session.prototype.answer=function(iid,ci,seconds,posL){
+  this.log.push({i:iid,c:ci,s:+(+seconds).toFixed(1),p:posL||null});
   const m=ITEMS[iid],ch=m.choices[ci];
   DIMS.forEach(d=>{const w=ch.weff[d];let nd=w>0?this.scores[d]+K*w*(100-this.scores[d]):w<0?this.scores[d]+K*w*this.scores[d]:this.scores[d];nd=clamp(nd);this.lastChange[d]=Math.abs(nd-this.scores[d]);this.scores[d]=nd;});
   m.measured.forEach(d=>this.counts[d]++);
@@ -1043,14 +1044,6 @@ async function loadProfile(){
   CURRENT_PROFILE=data||null;return CURRENT_PROFILE;
 }
 function isVerified(){return !!(CURRENT_PROFILE&&CURRENT_PROFILE.verified);}
-async function saveResult(p){
-  try{
-    if(!CURRENT_USER){const {data}=await SB.auth.getUser();CURRENT_USER=data&&data.user||null;}
-    if(!CURRENT_USER)return;
-    const {error}=await SB.from('test_results').insert({user_id:CURRENT_USER.id,overall:p.overall,band:p.band,coeff:p.coeff,qs_count:p.qs_count,review:p.review,reasons:p.reasons,scores:p.scores,adjusted:p.adjusted});
-    if(error)console.warn('saveResult',error.message);
-  }catch(e){console.warn('saveResult',e);}
-}
 /* ============ ACCOUNT NAV + CABINET ============ */
 let CAB_LATEST=null;
 function downloadPDF(){
@@ -1217,14 +1210,33 @@ function submitAnswer(){
 function showModal(key){document.getElementById('modalP').textContent=t(key);document.getElementById('modal').classList.add('show');}
 function closeModal(){document.getElementById('modal').classList.remove('show');nextQuestion();}
 /* ============ RESULTS ============ */
-function finishTest(){
+async function finishTest(){
   localStorage.setItem(LOCK_KEY,Date.now());
-  const v=S.coefficient();
-  const raw={},adj={};DIMS.forEach(d=>{raw[d]=Math.round(S.scores[d]);adj[d]=Math.round(S.scores[d]*v.coeff);});
-  const overall=Math.round(DIMS.reduce((s,d)=>s+adj[d],0)/6);
-  const band=overall>=70?'A':overall>=55?'B':overall>=40?'C':'D';
+  const w0=document.getElementById('resWrap');
+  w0.innerHTML=`<div style="text-align:center;padding:70px 0"><div class="spin-c"></div>
+    <p class="muted" style="margin-top:14px">${L('Natija hisoblanmoqda…','Идёт расчёт результата…','Calculating your result…')}</p></div>`;
+  go('results');
+  // The score is computed and stored on the server — it cannot be altered from the browser.
+  let R=null;
+  try{
+    const {data,error}=await SB.rpc('submit_assessment',{p_answers:S.log});
+    if(error)throw error; R=data;
+  }catch(e){
+    console.warn('submit_assessment',e&&e.message);
+    const msg=(e&&e.message)||'';
+    if(/RETEST_LOCKED_UNTIL/.test(msg)){renderLocked(Date.now());return;}
+    w0.innerHTML=`<div class="card" style="max-width:520px;margin:60px auto;text-align:center">
+      <div style="font-size:40px">⚠️</div>
+      <h2 style="font-size:19px;font-weight:800;margin:10px 0">${L('Natijani saqlab boʻlmadi','Не удалось сохранить результат','Could not save your result')}</h2>
+      <p class="muted" style="font-size:14px;margin-bottom:16px">${L('Internet aloqasini tekshirib, qaytadan urinib koʻring.','Проверьте соединение и попробуйте снова.','Check your connection and try again.')}</p>
+      <button class="btn btn-ghost" onclick="go('landing')">${t('again')}</button></div>`;
+    return;
+  }
+  const v={coeff:R.coeff,flag:R.review?'review':'ok'};
+  const raw=R.scores||{}, adj=R.adjusted||{};
+  const overall=R.overall;
+  const band=R.band;
   const bandColor={A:'#17A2A0',B:'#25B8AE',C:'#F58634',D:'#E23B3B'}[band];
-  saveResult({overall,band,coeff:v.coeff,qs_count:S.path.length,review:v.flag!=='ok',reasons:v.reasons||[],scores:raw,adjusted:adj});
   const w=document.getElementById('resWrap');
   let dimHtml='';DIMS.forEach(d=>{const m=DIMMETA[d];const lvl=adj[d]<45?'low':adj[d]<=65?'mid':'high';
     dimHtml+=`<div class="dimscore"><div class="top"><span>${m[LANG]} <small class="muted">(${d})</small></span><span style="color:${m.c}">${adj[d]}/100 · ${t(lvl)}</span></div><div class="bar"><i style="width:${adj[d]}%;background:${m.c}"></i></div></div>`;});
@@ -1257,7 +1269,6 @@ function finishTest(){
    <div class="lockbox"><div class="muted">${t('retry_p')}</div><div class="big">${nextDate}</div>
      <div class="muted" style="font-size:13px">${t('retry_h')} · ${t('months3')}</div>
      <button class="btn btn-ghost" style="margin-top:16px" onclick="go('landing')">${t('again')}</button></div>`;
-  go('results');
 }
 function renderLocked(nextTs){
   const nextDate=new Date(nextTs).toLocaleDateString(LANG==='ru'?'ru-RU':LANG==='en'?'en-GB':'uz-UZ');
