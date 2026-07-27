@@ -194,8 +194,8 @@ function render(){
   }else if(TAB==='users'){
     body=`<div class="adm-card"><h3>Roʻyxatdan oʻtgan foydalanuvchilar (${users.length})</h3>
       <div style="overflow-x:auto"><table class="adm"><thead><tr>
-      <th>Ism</th><th>Email</th><th>Telefon</th><th>Turi</th><th>Roʻyxatdan oʻtgan</th><th>Tasdiq</th><th>Test holati</th></tr></thead><tbody>
-      ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yo‘q</td></tr>`}
+      <th>Ism</th><th>Email</th><th>Telefon</th><th>Turi</th><th>Roʻyxatdan oʻtgan</th><th>Test holati</th></tr></thead><tbody>
+      ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="6" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yo‘q</td></tr>`}
       </tbody></table></div></div>`;
   }else if(TAB==='appl'){
     body=applBody();
@@ -236,7 +236,7 @@ function kpi(acc,ic,lab,val,sub,subColor){
 function dashBody(){
   const D=ROWS||[];
   const users=PROFILES.filter(p=>p.role!=='admin');
-  const registered=users.length, verified=users.filter(u=>u.verified).length, pendingVerify=registered-verified;
+  const registered=users.length;
   const tested=D.length, testedIds=new Set(D.map(x=>x.user_id));
   const completion=registered?Math.round(tested/registered*100):0;
   const avgScore=tested?Math.round(D.reduce((s,x)=>s+(x.overall||0),0)/tested):0;
@@ -274,7 +274,7 @@ function dashBody(){
     ${kpi('#294B85','🛡️','Oʻrtacha ishonch',avgCoeff.toFixed(2))}
     ${kpi('#25B8AE','⭐','Yuqori daraja (A/B)',`${highPct}%`,`${bands.A+bands.B} ta arizachi`)}
     ${kpi('#E23B3B','⚠️','Tekshiruvda',revPending.length,`${flaggedPct}% belgilangan`,revPending.length?'#f08a8a':'var(--muted)')}
-    ${kpi('#F58634','⏳','Tasdiq kutmoqda',pendingVerify,`${verified} tasdiqlangan`,pendingVerify?'#F58634':'var(--muted)')}
+    ${kpi('#F58634','🕒','Test topshirmagan',registered-testedIds.size,`${registered} roʻyxatdan oʻtgan`)}
     ${kpi('#17A2A0','📈','Shu hafta faollik',newTestWeek,`${newRegWeek} yangi roʻyxat`)}
   </div>
   <div class="chart-row">
@@ -401,11 +401,8 @@ function closeDetail(){const el=document.getElementById('admModal');if(el)el.cla
 function userRow(p,tested){
   const typ=p.type==='leg'?`<span class="pill leg">Yuridik</span>`:`<span class="pill ind">Jismoniy</span>`;
   const st=tested?`<span class="pill ok">✓ Topshirgan</span>`:`<span class="pill" style="background:#8fa6c922;color:#8FA6C9">Topshirmagan</span>`;
-  const ver=p.verified
-    ? `<span class="pill ok">✓ Tasdiqlangan</span> <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick="toggleVerify('${p.id}',false)">Bekor qilish</button>`
-    : `<button class="btn btn-navy" style="padding:6px 12px;font-size:12px" onclick="toggleVerify('${p.id}',true)">Tasdiqlash</button>`;
   const nm=esc(p.full_name||'—')+(p.org_name?`<div class="muted" style="font-size:11px">${esc(p.org_name)}</div>`:'');
-  return `<tr><td><b>${nm}</b></td><td>${esc(p.email||'—')}</td><td>${esc(p.phone||'—')}</td><td>${typ}</td><td>${fmtDate(p.created_at)}</td><td>${ver}</td><td>${st}</td></tr>`;
+  return `<tr><td><b>${nm}</b></td><td>${esc(p.email||'—')}</td><td>${esc(p.phone||'—')}</td><td>${typ}</td><td>${fmtDate(p.created_at)}</td><td>${st}</td></tr>`;
 }
 async function toggleVerify(id,val){
   const {error}=await SB.from('profiles').update({verified:val}).eq('id',id);

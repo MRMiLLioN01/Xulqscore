@@ -1043,7 +1043,7 @@ async function loadProfile(){
   const {data}=await SB.from('profiles').select('verified,role,full_name').eq('id',CURRENT_USER.id).maybeSingle();
   CURRENT_PROFILE=data||null;return CURRENT_PROFILE;
 }
-function isVerified(){return !!(CURRENT_PROFILE&&CURRENT_PROFILE.verified);}
+function isVerified(){return true;} // verification gate removed
 /* ============ ACCOUNT NAV + CABINET ============ */
 let CAB_LATEST=null;
 async function shareScore(){
@@ -1118,8 +1118,7 @@ async function renderCabinet(){
      <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="shareBtn" onclick="shareScore()">🔑 ${L('Ulashish','Поделиться','Share')}</button>
      <button class="btn btn-ghost" id="pdfBtn" onclick="downloadPDF()">⬇ PDF</button>
      <button class="btn btn-ghost" onclick="authSignOut();go('landing')">${L('Chiqish','Выйти','Sign out')}</button></div></div>`;
-  const vok=isVerified();
-  const pend=vok?'':`<div class="validity review" style="max-width:640px;margin:0 auto 16px">⏳ ${L('Hisobingiz administrator tomonidan tasdiqlanishini kutmoqda.','Ваш аккаунт ожидает подтверждения администратором.','Your account is awaiting administrator approval.')}</div>`;
+  const vok=true, pend='';
   if(!data||!data.length){
     b.innerHTML=head+pend+`<div class="card" style="max-width:520px;margin:20px auto;text-align:center">
       <div style="font-size:40px">📊</div><h3 style="font-size:18px;font-weight:800;margin:8px 0 6px">${L('Hali natija yoʻq','Пока нет результатов','No results yet')}</h3>
