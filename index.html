@@ -520,7 +520,7 @@ let CURRENT_USER=null, CURRENT_PROFILE=null;
     <p data-i18n="cta_p">10–15 daqiqada moslashuvchan diagnostikadan o'ting.</p>
     <button class="btn btn-primary" onclick="go('auth')" data-i18n="cta_btn">Hoziroq boshlash</button>
   </div></div></section>
-  <footer><div class="wrap">© 2026 XulqskorAI · v2.1 · <span data-i18n="foot">Xulq-atvor va muqobil ma'lumotlar asosida aqlli kredit skoringi</span></div></footer>
+  <footer><div class="wrap">© 2026 XulqskorAI · <a href="/privacy.html" style="color:inherit" data-i18n="foot_priv">Maxfiylik siyosati</a> · <span data-i18n="foot">Xulq-atvor va muqobil ma'lumotlar asosida aqlli kredit skoringi</span></div></footer>
 </div>
 
 <!-- AUTH -->
@@ -639,7 +639,8 @@ const T={
   eri_p:"Yuridik shaxs sifatida davom etish uchun elektron raqamli imzo (ERI) kalitingiz bilan tasdiqlang.",
   eri_btn:"ERI kalit bilan tasdiqlash",eri_ok:"ERI kalit tasdiqlandi",
   start_diag:"Diagnostikani boshlash",code_hint:"Namoyish uchun: istalgan 4 xonali kod",
-  consent:"Men ma'lumotlarim tahlil qilinishiga roziman va halol javob berishga va'da beraman.",
+  foot_priv:"Maxfiylik siyosati",
+  consent:"Men <a href=\"/privacy.html\" target=\"_blank\">maxfiylik siyosati</a>ga roziman, ma'lumotlarim tahlil qilinishiga rozilik beraman va halol javob berishga va'da beraman.",
   minhint:"Ishonchli natija uchun har bir savolga kamida 9 soniya o'ylang.",
   res_h:"Sizning natijangiz",overall:"Umumiy ball",dims_h:"O'lchamlar bo'yicha ball",
   radar_h:"Profil radar diagrammasi",rec_h:"Tavsiyalar",valid_ok:"Test halol topshirilgan.",
@@ -709,7 +710,8 @@ const T={
   eri_p:"Для продолжения как юрлицо подтвердите вашим ключом электронной цифровой подписи (ЭЦП).",
   eri_btn:"Подтвердить ЭЦП ключом",eri_ok:"ЭЦП ключ подтверждён",
   start_diag:"Начать диагностику",code_hint:"Для демо: любой 4-значный код",
-  consent:"Я согласен на анализ моих данных и обещаю отвечать честно.",
+  foot_priv:"Политика конфиденциальности",
+  consent:"Я принимаю <a href=\"/privacy.html\" target=\"_blank\">политику конфиденциальности</a>, согласен на анализ моих данных и обещаю отвечать честно.",
   minhint:"Для достоверного результата обдумывайте каждый вопрос не менее 9 секунд.",
   res_h:"Ваш результат",overall:"Общий балл",dims_h:"Баллы по измерениям",
   radar_h:"Радар-диаграмма профиля",rec_h:"Рекомендации",valid_ok:"Тест пройден честно.",
@@ -779,7 +781,8 @@ const T={
   eri_p:"To continue as a legal entity, confirm with your electronic digital signature (ERI) key.",
   eri_btn:"Confirm with ERI key",eri_ok:"ERI key confirmed",
   start_diag:"Start the diagnostic",code_hint:"For demo: any 4-digit code",
-  consent:"I consent to my data being analysed and promise to answer honestly.",
+  foot_priv:"Privacy policy",
+  consent:"I accept the <a href=\"/privacy.html\" target=\"_blank\">privacy policy</a>, consent to my data being analysed and promise to answer honestly.",
   minhint:"For a reliable result, spend at least 9 seconds on each question.",
   res_h:"Your result",overall:"Overall score",dims_h:"Scores by dimension",
   radar_h:"Profile radar chart",rec_h:"Recommendations",valid_ok:"Test taken honestly.",
@@ -1014,8 +1017,15 @@ async function authSignup(){
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signUp({email:phoneEmail(phone),password,options:{data:{full_name,phone,contact_email:contact_email||null,org_name,type:AUTHTYPE}}});
   if(error){btn.disabled=false;toast(/registered|exists/i.test(error.message)?L('Bu raqam roʻyxatdan oʻtgan','Этот номер уже зарегистрирован','This number is already registered'):('✕ '+error.message));return;}
-  if(data.session){CURRENT_USER=data.user;await loadProfile();toast('✔');updateNav();go('cabinet');}
+  if(data.session){CURRENT_USER=data.user;await recordConsent();await loadProfile();toast('✔');updateNav();go('cabinet');}
   else {AUTHMODE='login';renderAuth();}
+}
+async function recordConsent(){
+  try{
+    if(!CURRENT_USER)return;
+    await SB.from('consents').insert({user_id:CURRENT_USER.id,policy_version:'1.0',lang:LANG,user_agent:(navigator.userAgent||'').slice(0,300)});
+    await SB.from('profiles').update({consent_at:new Date().toISOString()}).eq('id',CURRENT_USER.id);
+  }catch(e){console.warn('consent',e);}
 }
 async function authLogin(){
   const phone=fmtPhone(document.getElementById('phone')?.value||'');
