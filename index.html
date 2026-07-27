@@ -1244,7 +1244,10 @@ async function finishTest(){
   }catch(e){
     console.warn('submit_assessment',e&&e.message);
     const msg=(e&&e.message)||'';
-    if(/RETEST_LOCKED_UNTIL/.test(msg)){renderLocked(Date.now());return;}
+    if(/RETEST_LOCKED_UNTIL/.test(msg)){
+      const m=msg.match(/(\d{4}-\d{2}-\d{2})/);
+      renderLocked(m?new Date(m[1]+'T00:00:00').getTime():Date.now()+90*24*3600*1000);
+      return;}
     w0.innerHTML=`<div class="card" style="max-width:520px;margin:60px auto;text-align:center">
       <div style="font-size:40px">⚠️</div>
       <h2 style="font-size:19px;font-weight:800;margin:10px 0">${L('Natijani saqlab boʻlmadi','Не удалось сохранить результат','Could not save your result')}</h2>
