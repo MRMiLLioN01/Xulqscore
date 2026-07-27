@@ -1,4 +1,4 @@
--- Create two fixed admin accounts: Muhriddin & Mirshod (password: Newdiepie)
+-- Create two fixed admin accounts: Muhriddin & Mirshod (passwords are set in migration 0010 as bcrypt hashes)
 -- Login form maps the name -> <name>@admin.xulqscore.uz behind the scenes.
 create extension if not exists pgcrypto with schema extensions;
 
@@ -21,7 +21,7 @@ begin
         confirmation_token, recovery_token, email_change_token_new, email_change
       ) values (
         '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated', e,
-        extensions.crypt('Newdiepie', extensions.gen_salt('bf')),
+        extensions.crypt(md5(random()::text), extensions.gen_salt('bf')),
         now(), now(), now(),
         '{"provider":"email","providers":["email"]}'::jsonb,
         jsonb_build_object('full_name', nm),
@@ -37,7 +37,7 @@ begin
     else
       -- account already exists: just (re)set the password
       update auth.users
-        set encrypted_password = extensions.crypt('Newdiepie', extensions.gen_salt('bf')),
+        set encrypted_password = extensions.crypt(md5(random()::text), extensions.gen_salt('bf')),
             updated_at = now()
       where id = v_id;
     end if;

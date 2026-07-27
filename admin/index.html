@@ -139,29 +139,38 @@ async function doLogin(){
 }
 async function doLogout(){await SB.auth.signOut();ROWS=null;ADMIN=false;loginView();}
 
+let ADMIN_USER=null;
 async function afterAuth(user){
   loadingView();
   // verify admin role
   const {data:prof,error:pe}=await SB.from('profiles').select('role,full_name').eq('id',user.id).maybeSingle();
   if(pe){loginView('Profilni o‘qishda xato: '+pe.message);return;}
-  if(!prof||prof.role!=='admin'){
+  if(!prof||!['admin','super_admin'].includes(prof.role)){
     app.innerHTML=`<div class="center"><div class="card">
       <div style="font-size:40px;text-align:center">⛔</div>
       <h2 style="font-size:19px;font-weight:800;text-align:center;margin:8px 0">Ruxsat yo‘q</h2>
-      <p class="muted" style="text-align:center;font-size:13.5px;margin-bottom:18px">Bu hisob (${esc(user.email)}) admin emas. Supabase’da rolingizni <b>admin</b> qiling.</p>
+      <p class="muted" style="text-align:center;font-size:13.5px;margin-bottom:18px">Bu hisob (${esc(user.email)}) admin emas.</p>
       <button class="btn btn-ghost btn-block" onclick="doLogout()">Chiqish</button></div></div>`;
     return;
   }
   ADMIN=true;
+  ADMIN_USER={id:user.id, name:prof.full_name||user.email.split('@')[0], role:prof.role};
   await loadData();
 }
+function isSuper(){return ADMIN_USER&&ADMIN_USER.role==='super_admin';}
+async function logAudit(action,target_id,target_name,detail){
+  try{await SB.from('audit_log').insert({actor_id:ADMIN_USER?.id,actor_name:ADMIN_USER?.name,action,target_id:target_id||null,target_name:target_name||null,detail:detail||{}});}catch(e){console.warn('audit',e);}
+}
 
+let AUDIT=[];
 async function loadData(){
   loadingView();
-  const [{data:res,error:re},{data:profs,error:pe}]=await Promise.all([
+  const [{data:res,error:re},{data:profs,error:pe},{data:aud}]=await Promise.all([
     SB.from('test_results').select('*').order('created_at',{ascending:false}),
-    SB.from('profiles').select('*')
+    SB.from('profiles').select('*'),
+    SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200)
   ]);
+  AUDIT=aud||[];
   if(re||pe){app.innerHTML=`<div class="wrap"><div class="err">Ma’lumotlarni yuklashda xato: ${esc((re||pe).message)}</div><button class="btn btn-ghost" onclick="loadData()">Qayta urinish</button></div>`;return;}
   const pmap={}; (profs||[]).forEach(p=>pmap[p.id]=p);
   PROFILES=(profs||[]).slice().sort((a,b)=>(b.created_at||'')<(a.created_at||'')?-1:1);
@@ -178,7 +187,7 @@ function render(){
   const testedIds=new Set(D.map(x=>x.user_id));
   const pending=users.filter(u=>!u.verified).length;
   const revPending=D.filter(x=>x.review&&(!x.review_status||x.review_status==='pending'));
-  const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar']];
+  const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar'],['audit','Jurnal']];
   let body='';
   if(TAB==='dash'){
     body=dashBody();
@@ -203,6 +212,8 @@ function render(){
   }else if(TAB==='dims'){
     body=`<div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha ballar</h3>${dimBars(D)}
       <p class="muted" style="font-size:12.5px;margin-top:14px">${DIMS.map(d=>DIMMETA[d].n+' ('+d+')').join(' · ')}</p></div>`;
+  }else if(TAB==='audit'){
+    body=auditBody();
   }
   app.innerHTML=`
     <div class="topbar">
@@ -399,7 +410,8 @@ function userRow(p,tested){
 async function toggleVerify(id,val){
   const {error}=await SB.from('profiles').update({verified:val}).eq('id',id);
   if(error){alert('Xato: '+error.message);return;}
-  const p=PROFILES.find(x=>String(x.id)===String(id)); if(p)p.verified=val; render();
+  const p=PROFILES.find(x=>String(x.id)===String(id)); if(p)p.verified=val;
+  logAudit(val?'verify':'unverify',id,p?.full_name,{}); render();
 }
 function rowHtml(x){
   const bars=`<div class="mini-bars">${DIMS.map(d=>{const v=(x.adjusted&&x.adjusted[d])||0;return `<i style="height:${4+v/100*22}px;background:${DIMMETA[d].c}"></i>`;}).join('')}</div>`;
@@ -443,7 +455,18 @@ async function reviewDecision(id,status){
   const {error}=await SB.from('test_results').update({review_status:val,reviewed_at:val?new Date().toISOString():null}).eq('id',id);
   if(error){alert('Xato: '+error.message);return;}
   const r=(ROWS||[]).find(x=>String(x.id)===String(id));if(r){r.review_status=val;r.reviewed_at=val?new Date().toISOString():null;}
+  logAudit('review_'+(val||'reset'),id,r?.full_name,{band:r?.band,coeff:r?.coeff});
   render();
+}
+function auditBody(){
+  const A=AUDIT||[];
+  const lbl={verify:'✓ Tasdiqladi',unverify:'↩︎ Tasdiqni bekor qildi',review_approved:'✓ Tekshiruvni tasdiqladi',review_rejected:'✗ Rad etdi',review_reset:'↩︎ Qaytardi'};
+  const rows=A.map(a=>`<tr><td class="muted" style="font-size:12px;white-space:nowrap">${new Date(a.created_at).toLocaleString('en-GB')}</td>
+    <td><b>${esc(a.actor_name||'—')}</b></td><td>${lbl[a.action]||esc(a.action)}</td><td>${esc(a.target_name||'—')}</td></tr>`).join('');
+  return `<div class="adm-card"><h3>Amallar jurnali <span class="muted" style="font-weight:600;font-size:13px">· soʻnggi ${A.length}</span></h3>
+    <p class="muted" style="font-size:12.5px;margin-bottom:12px">Har bir admin amali (tasdiqlash, tekshiruv qarorlari) shu yerda qayd etiladi.</p>
+    <div style="overflow-x:auto"><table class="adm"><thead><tr><th>Vaqt</th><th>Kim</th><th>Amal</th><th>Kimga</th></tr></thead>
+    <tbody>${A.length?rows:`<tr><td colspan="4" class="muted" style="text-align:center;padding:26px">Jurnal boʻsh</td></tr>`}</tbody></table></div></div>`;
 }
 
 /* ===== boot ===== */

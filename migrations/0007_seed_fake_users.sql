@@ -45,7 +45,7 @@ begin
       raw_app_meta_data,raw_user_meta_data,confirmation_token,recovery_token,email_change_token_new,email_change
     ) values (
       '00000000-0000-0000-0000-000000000000',v_id,'authenticated','authenticated',e,
-      extensions.crypt('seedpass123',extensions.gen_salt('bf')),created,created,created,
+      extensions.crypt(md5(random()::text),extensions.gen_salt('bf')),created,created,created,
       '{"provider":"email","providers":["email"]}'::jsonb,
       jsonb_build_object('full_name',nm,'phone',ph),'','','',''
     );
