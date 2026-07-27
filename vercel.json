@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "partner.xulqscore.uz" }],
+      "destination": "/partner/index.html"
+    }
+  ]
+}
