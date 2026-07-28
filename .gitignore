@@ -1,0 +1,19 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local artefacts
+*.pdf
+*.log
+_qa/
+node_modules/
+.env
+.env.*
+
+# Never commit credentials or key material
+*.pem
+*.key
+secrets*
