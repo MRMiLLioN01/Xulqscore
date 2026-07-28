@@ -1231,7 +1231,6 @@ function showModal(key){document.getElementById('modalP').textContent=t(key);doc
 function closeModal(){document.getElementById('modal').classList.remove('show');nextQuestion();}
 /* ============ RESULTS ============ */
 async function finishTest(){
-  localStorage.setItem(LOCK_KEY,Date.now());
   const w0=document.getElementById('resWrap');
   w0.innerHTML=`<div style="text-align:center;padding:70px 0"><div class="spin-c"></div>
     <p class="muted" style="margin-top:14px">${L('Natija hisoblanmoqda…','Идёт расчёт результата…','Calculating your result…')}</p></div>`;
