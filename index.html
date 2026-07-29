@@ -922,7 +922,7 @@ function renderAuth(){
   if(CURRENT_USER){
     b.innerHTML=`<div class="eri" style="border-color:var(--teal)"><h5>✔ ${L('Hisobingizga kirdingiz','Вы вошли в аккаунт','Signed in')}</h5>
        <p class="muted" style="font-size:13px;margin:0">${(CURRENT_USER.user_metadata||{}).phone||userName()}</p></div>`
-    + `<label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
+    + `<label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;color:var(--muted);margin:14px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;flex:0 0 auto;margin-top:2px"><span>${t('consent')}</span></label>
       <button class="btn btn-primary btn-block" onclick="beginTest()">${t('start_diag')}</button>`
     + `<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="authSignOut()">${L('Chiqish','Выйти','Sign out')}</button>`;
     return;
@@ -939,7 +939,7 @@ function renderAuth(){
     <div class="field"><label>${t('phone')} *</label><input id="phone" value="+998 " inputmode="tel" oninput="this.value=fmtPhone(this.value)" onfocus="if(!this.value)this.value='+998 '"></div>
     <div class="field"><label>Email <span class="muted" style="font-weight:400">(${L('ixtiyoriy','необязательно','optional')})</span></label><input id="email" type="email" placeholder="you@email.com" inputmode="email"></div>
     <div class="field"><label>${L('Parol','Пароль','Password')}</label><input id="password" type="password" placeholder="••••••••"></div>
-    <label style="display:flex;gap:9px;font-size:13px;color:var(--muted);margin:6px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;margin-top:3px"> ${t('consent')}</label>
+    <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;color:var(--muted);margin:6px 0 16px"><input type="checkbox" id="consent" checked style="width:auto;flex:0 0 auto;margin-top:2px"><span>${t('consent')}</span></label>
     <button class="btn btn-navy btn-block" id="authBtn" onclick="authSignup()">${L('Roʻyxatdan oʻtish','Зарегистрироваться','Create account')}</button>`;
   } else {
     html+=`<div class="field"><label>${t('phone')}</label><input id="phone" value="+998 " inputmode="tel" oninput="this.value=fmtPhone(this.value)" onfocus="if(!this.value)this.value='+998 '"></div>
