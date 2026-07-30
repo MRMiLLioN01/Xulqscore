@@ -95,6 +95,40 @@ table.adm tr:hover td{background:#18243c}
 .modal-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;max-width:560px;width:100%;max-height:88vh;overflow:auto}
 table.adm th:hover{color:var(--text)}
 @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.abar .nm{width:120px}}
+
+/* ===== shared motion layer (v3) ===== */
+:root{--e-out:cubic-bezier(.22,.9,.28,1);--e-spring:cubic-bezier(.34,1.5,.5,1);
+ --sheen:linear-gradient(105deg,transparent 22%,rgba(255,255,255,.4) 50%,transparent 78%)}
+.btn{position:relative;overflow:hidden;isolation:isolate;
+ transition:transform .3s var(--e-spring),box-shadow .35s var(--e-out),background-position .5s var(--e-out),border-color .3s,filter .3s}
+.btn::before{content:"";position:absolute;inset:0;z-index:1;background:var(--sheen);transform:translateX(-135%)}
+.btn:hover::before{transform:translateX(135%);transition:transform .9s var(--e-out)}
+.btn:active{transform:scale(.965)!important}
+.btn-primary:hover{transform:translateY(-3px) scale(1.02)}
+.btn-navy:hover,.btn-ghost:hover,.btn-teal:hover{transform:translateY(-2px)}
+.rp{position:absolute;border-radius:50%;transform:scale(0);opacity:.5;background:rgba(255,255,255,.45);
+ animation:rip .62s var(--e-out) forwards;pointer-events:none;z-index:1}
+.btn-ghost .rp,.seg button .rp{background:rgba(42,78,134,.25)}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+.card{transition:transform .4s var(--e-out),box-shadow .4s var(--e-out)}
+.brand{transition:transform .4s var(--e-spring)}
+.brand:hover{transform:scale(1.03)}
+.seg button{transition:.25s var(--e-out)}
+.seg button:hover{transform:translateY(-1px)}
+.field input,.field select,.code-input{transition:border-color .25s,box-shadow .35s var(--e-out),transform .3s var(--e-out)}
+.field input:focus,.field select:focus,.code-input:focus{transform:translateY(-1px)}
+.pill,.band,.tag{transition:transform .3s var(--e-spring)}
+.pill:hover,.tag:hover{transform:scale(1.06)}
+.abar .tr i,.tr i{transition:width 1s var(--e-out)}
+a.back{transition:transform .3s var(--e-out),color .25s}
+a.back:hover{transform:translateX(-4px)}
+.rv{opacity:0;transform:translateY(20px);transition:opacity .7s var(--e-out),transform .7s var(--e-out)}
+.rv.in{opacity:1;transform:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+body>.wrap,.center-wrap{animation:fadeUp .6s var(--e-out) both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+ .rv{opacity:1!important;transform:none!important}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -510,6 +544,31 @@ function auditBody(){
   const {data}=await SB.auth.getSession();
   if(data&&data.session){await afterAuth(data.session.user);}
   else loginView();
+})();
+</script>
+<script>
+/* shared motion: reveal + ripple */
+(function(){
+ var rm=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ function start(){
+  if(rm)return;
+  if('IntersectionObserver' in window){
+   var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.1,rootMargin:'0px 0px -6% 0px'});
+   document.querySelectorAll('.card,.res-hero,.abar,.adm-card,.kpi,h2,.upd').forEach(function(el,i){
+    if(el.closest('.topbar'))return;el.classList.add('rv');el.style.transitionDelay=Math.min(i*60,300)+'ms';io.observe(el);
+    setTimeout(function(){el.style.transitionDelay='';},1400);});
+  }
+  document.addEventListener('pointerdown',function(e){
+   var el=e.target.closest&&e.target.closest('.btn,.seg button,button');
+   if(!el||el.disabled)return;var r=el.getBoundingClientRect(),d=Math.max(r.width,r.height)*2;
+   var s=document.createElement('span');s.className='rp';s.style.width=s.style.height=d+'px';
+   s.style.left=(e.clientX-r.left-d/2)+'px';s.style.top=(e.clientY-r.top-d/2)+'px';
+   var cs=getComputedStyle(el);if(cs.position==='static')el.style.position='relative';
+   if(cs.overflow==='visible')el.style.overflow='hidden';
+   el.appendChild(s);setTimeout(function(){s.remove();},650);
+  },{passive:true});
+ }
+ document.addEventListener('DOMContentLoaded',start);
 })();
 </script>
 </body>
