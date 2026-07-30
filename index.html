@@ -803,7 +803,7 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
     <div>
       <div class="video-slot" id="videoSlot" style="padding:0;overflow:hidden;cursor:pointer;border-style:solid;border-color:rgba(255,255,255,.15)">
         <div class="vwrap" onclick="playVideo()" role="button" aria-label="Play">
-          <img class="vposter" src="https://i.ytimg.com/vi/qBvh83I9JRo/maxresdefault.jpg" alt="XulqskorAI" loading="lazy">
+          <img class="vposter" src="https://i.ytimg.com/vi/PzLTtrGzBSE/maxresdefault.jpg" alt="XulqskorAI" loading="lazy">
           <div class="vshade"></div><div class="vplay"></div>
           <div class="vcap" data-i18n="video_cap">XulqskorAI — 2 daqiqada</div>
         </div>
@@ -1429,7 +1429,7 @@ let AUTHTYPE='ind', S=null, curItem=null, curReason=null, curOrder=null, selIdx=
 const LOCK_KEY='xs_lastAttempt';
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);if(id==='auth')renderAuth();if(id==='admin')renderAdmin();if(id==='cabinet')renderCabinet();}
 function playVideo(){var e=document.getElementById('videoSlot');if(!e)return;
-  e.innerHTML='<iframe src="https://www.youtube.com/embed/qBvh83I9JRo?autoplay=1&rel=0&modestbranding=1" title="XulqskorAI" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:20px" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';}
+  e.innerHTML='<iframe src="https://www.youtube.com/embed/PzLTtrGzBSE?autoplay=1&rel=0&modestbranding=1" title="XulqskorAI" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:20px" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';}
 function scrollToId(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});}
 function toggleRoad(i){var el=document.getElementById('ra'+i);if(el)el.classList.toggle('open');}
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2600);}
