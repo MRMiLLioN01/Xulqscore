@@ -974,7 +974,7 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
     <div class="sec-tag" data-i18n="price_tag">TARIFLAR</div>
     <h2 class="sec-h" data-i18n="price_h">Har kim uchun mos tarif</h2>
     <p class="sec-sub" data-i18n="price_sub">Faqat moliya tashkilotlari uchun (B2B) — uch xil hamkorlik darajasi.</p>
-    <div style="margin:-28px 0 26px"><span class="ai-pill" data-i18n="pr_vol">Narx hajmga bogʻliq</span></div>
+    <p class="sec-sub" style="margin:-30px 0 26px;font-size:14px" data-i18n="pr_vol">Narx hajmga bogʻliq</p>
     <div class="price-grid">
       <div class="price-card">
         <div class="pname" style="color:var(--teal-txt" data-i18n="pr1_n">BOSHLANG'ICH (MFT)</div>
@@ -1046,8 +1046,9 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
       </div>
       <div>
         <h5 data-i18n="f_contact">Bog'lanish</h5>
-        <a href="mailto:info@xulqscore.uz">info@xulqscore.uz</a>
+        <!-- TODO: haqiqiy e-pochta/telefonni shu yerga qo'ying -->
         <p data-i18n="f_pilot">Pilot va hamkorlik takliflari uchun yozing.</p>
+        <a href="#pricing" onclick="MO.nav('pricing');return false" data-i18n="cta_btn">Pilot so'rash</a>
       </div>
     </div>
     <div class="fbot"><span>© 2026 XulqskorAI</span><span class="muted" data-i18n="f_stage">Pilot bosqichi · Toshkent, O'zbekiston</span></div>
