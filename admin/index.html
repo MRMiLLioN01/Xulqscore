@@ -184,11 +184,11 @@ async function afterAuth(user){
   loadingView();
   // verify admin role
   const {data:prof,error:pe}=await SB.from('profiles').select('role,full_name').eq('id',user.id).maybeSingle();
-  if(pe){loginView('Profilni o‘qishda xato: '+pe.message);return;}
+  if(pe){loginView('Profilni oʻqishda xato: '+pe.message);return;}
   if(!prof||!['admin','super_admin'].includes(prof.role)){
     app.innerHTML=`<div class="center"><div class="card">
       <div style="font-size:40px;text-align:center">⛔</div>
-      <h2 style="font-size:19px;font-weight:800;text-align:center;margin:8px 0">Ruxsat yo‘q</h2>
+      <h2 style="font-size:19px;font-weight:800;text-align:center;margin:8px 0">Ruxsat yoʻq</h2>
       <p class="muted" style="text-align:center;font-size:13.5px;margin-bottom:18px">Bu hisob (${esc(user.email)}) admin emas.</p>
       <button class="btn btn-ghost btn-block" onclick="doLogout()">Chiqish</button></div></div>`;
     return;
@@ -202,17 +202,19 @@ async function logAudit(action,target_id,target_name,detail){
   try{await SB.from('audit_log').insert({actor_id:ADMIN_USER?.id,actor_name:ADMIN_USER?.name,action,target_id:target_id||null,target_name:target_name||null,detail:detail||{}});}catch(e){console.warn('audit',e);}
 }
 
-let AUDIT=[],ERRORS=[];
+let AUDIT=[],ERRORS=[],PILOTS=[];
 async function loadData(){
   loadingView();
-  const [{data:res,error:re},{data:profs,error:pe},{data:aud},{data:errs}]=await Promise.all([
+  const [{data:res,error:re},{data:profs,error:pe},{data:aud},{data:errs},{data:pil,error:ple}]=await Promise.all([
     SB.from('test_results').select('*').order('created_at',{ascending:false}),
     SB.from('profiles').select('*'),
     SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200),
-    SB.from('error_log').select('*').order('created_at',{ascending:false}).limit(100)
+    SB.from('error_log').select('*').order('created_at',{ascending:false}).limit(100),
+    SB.from('pilot_requests').select('*').order('created_at',{ascending:false}).limit(500)
   ]);
-  AUDIT=aud||[]; ERRORS=errs||[];
-  if(re||pe){app.innerHTML=`<div class="wrap"><div class="err">Ma’lumotlarni yuklashda xato: ${esc((re||pe).message)}</div><button class="btn btn-ghost" onclick="loadData()">Qayta urinish</button></div>`;return;}
+  AUDIT=aud||[]; ERRORS=errs||[]; PILOTS=pil||[];
+  if(ple)console.warn('pilot_requests:',ple.message);
+  if(re||pe){app.innerHTML=`<div class="wrap"><div class="err">Maʼlumotlarni yuklashda xato: ${esc((re||pe).message)}</div><button class="btn btn-ghost" onclick="loadData()">Qayta urinish</button></div>`;return;}
   const pmap={}; (profs||[]).forEach(p=>pmap[p.id]=p);
   PROFILES=(profs||[]).slice().sort((a,b)=>(b.created_at||'')<(a.created_at||'')?-1:1);
   ROWS=(res||[]).map(r=>{const p=pmap[r.user_id]||{};return {...r,full_name:p.full_name,email:p.email,type:p.type,phone:p.phone,org_name:p.org_name,is_demo:!!p.is_demo};});
@@ -228,7 +230,8 @@ function render(){
   const testedIds=new Set(D.map(x=>x.user_id));
   const pending=users.filter(u=>!u.verified).length;
   const revPending=D.filter(x=>x.review&&(!x.review_status||x.review_status==='pending'));
-  const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['review','Tekshiruv'],['dims','O‘lchamlar'],['audit','Jurnal'],['errors','Xatolar']];
+  const pilotNew=(PILOTS||[]).filter(p=>!p.handled).length;
+  const tabs=[['dash','Boshqaruv'],['users','Foydalanuvchilar'],['appl','Arizachilar'],['pilot','Pilot soʻrovlari'+(pilotNew?' ('+pilotNew+')':'')],['review','Tekshiruv'],['dims','Oʻlchamlar'],['audit','Jurnal'],['errors','Xatolar']];
   let body='';
   if(TAB==='dash'){
     body=dashBody();
@@ -236,7 +239,7 @@ function render(){
     body=`<div class="adm-card"><h3>Roʻyxatdan oʻtgan foydalanuvchilar (${users.length})</h3>
       <div style="overflow-x:auto"><table class="adm"><thead><tr>
       <th>Ism</th><th>Email</th><th>Telefon</th><th>Turi</th><th>Roʻyxatdan oʻtgan</th><th>Test holati</th><th>Amal</th></tr></thead><tbody>
-      ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yo‘q</td></tr>`}
+      ${users.length?users.map(p=>userRow(p,testedIds.has(p.id))).join(''):`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Hozircha foydalanuvchilar yoʻq</td></tr>`}
       </tbody></table></div></div>`;
   }else if(TAB==='appl'){
     body=applBody();
@@ -251,8 +254,10 @@ function render(){
       <div class="tabs" style="margin-bottom:14px">${chip('pending','⏳ Kutilmoqda')}${chip('approved','✓ Tasdiqlangan')}${chip('rejected','✗ Rad etilgan')}${chip('all','Hammasi')}</div>
       ${shown.length?shown.map(reviewCard).join(''):`<div style="text-align:center;padding:30px" class="muted">Bu boʻlim boʻsh 🎉</div>`}</div>`;
   }else if(TAB==='dims'){
-    body=`<div class="adm-card"><h3>O‘lchamlar bo‘yicha o‘rtacha ballar</h3>${dimBars(D)}
+    body=`<div class="adm-card"><h3>Oʻlchamlar boʻyicha oʻrtacha ballar</h3>${dimBars(D)}
       <p class="muted" style="font-size:12.5px;margin-top:14px">${DIMS.map(d=>DIMMETA[d].n+' ('+d+')').join(' · ')}</p></div>`;
+  }else if(TAB==='pilot'){
+    body=pilotBody();
   }else if(TAB==='audit'){
     body=auditBody();
   }else if(TAB==='errors'){
@@ -486,6 +491,7 @@ function dimBars(D){
     return `<div class="abar"><div class="nm">${DIMMETA[d].n}</div><div class="tr"><i style="width:${a}%;background:${DIMMETA[d].c}"></i></div><div class="vl">${a}</div></div>`;}).join('');
 }
 let RV_FILTER='pending';
+let PILOT_FILTER='new';
 function setRvFilter(f){RV_FILTER=f;render();}
 function reviewCard(x){
   const reasons=(x.reasons&&x.reasons.length?x.reasons.map(r=>REASON[r]||r):['Past ishonch koeffitsiyenti']);
@@ -527,6 +533,58 @@ function errorsBody(){
     <div style="overflow-x:auto"><table class="adm"><thead><tr><th>Vaqt</th><th>Ilova</th><th>Xato</th><th>Brauzer</th></tr></thead>
     <tbody>${E.length?rows:`<tr><td colspan="4" class="muted" style="text-align:center;padding:26px">Xatolar yoʻq 🎉</td></tr>`}</tbody></table></div></div>`;
 }
+/* ===== Pilot soʻrovlari: banklar va mikromoliya tashkilotlaridan kelgan arizalar ===== */
+function pilotRow(p){
+  const st=p.handled
+    ? `<span class="pill ok">✓ Koʻrib chiqilgan</span>`
+    : `<span class="pill review">Yangi</span>`;
+  const act=p.handled
+    ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:11.5px" onclick="setPilotHandled('${p.id}',false)">↩︎ Qaytarish</button>`
+    : `<button class="btn btn-ghost" style="padding:5px 10px;font-size:11.5px" onclick="setPilotHandled('${p.id}',true)">✓ Koʻrib chiqildi</button>`;
+  const org=`<b>${esc(p.org||'—')}</b><div class="muted" style="font-size:11px">${esc(p.name||'')}</div>`;
+  const mail=p.email?`<a href="mailto:${esc(p.email)}" style="color:var(--teal)">${esc(p.email)}</a>`:'—';
+  const note=p.note
+    ? `<div style="max-width:340px;white-space:normal;line-height:1.5">${esc(p.note)}</div>`
+    : `<span class="muted">—</span>`;
+  return `<tr><td class="muted" style="font-size:12px;white-space:nowrap">${fmtDate(p.created_at)}</td>
+    <td>${org}</td><td style="white-space:nowrap">${mail}</td>
+    <td style="white-space:nowrap">${esc(p.volume||'—')}</td><td>${note}</td>
+    <td>${st}</td><td>${act}</td></tr>`;
+}
+function pilotBody(){
+  const P=PILOTS||[];
+  const neww=P.filter(p=>!p.handled);
+  const shown=PILOT_FILTER==='new'?neww:(PILOT_FILTER==='done'?P.filter(p=>p.handled):P);
+  const chip=(k,label,cnt)=>`<button class="${PILOT_FILTER===k?'on':''}" onclick="setPilotFilter('${k}')">${label} (${cnt})</button>`;
+  const rows=shown.map(pilotRow).join('');
+  return `<div class="adm-card">
+    <h3>Pilot soʻrovlari <span class="muted" style="font-weight:600;font-size:13px">· jami ${P.length}</span></h3>
+    <p class="muted" style="font-size:12.5px;margin-bottom:12px">Bosh sahifadagi «Request a pilot» shaklidan kelgan arizalar. Har biriga ikki ish kuni ichida javob berish maqsad qilingan.</p>
+    <div class="tabs" style="margin-bottom:14px">${chip('new','Yangi',neww.length)}${chip('done','Koʻrib chiqilgan',P.length-neww.length)}${chip('all','Hammasi',P.length)}</div>
+    <div style="overflow-x:auto"><table class="adm"><thead><tr>
+      <th>Sana</th><th>Tashkilot</th><th>Email</th><th>Oyiga ariza</th><th>Izoh</th><th>Holati</th><th>Amal</th>
+    </tr></thead><tbody>${shown.length?rows:`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Bu boʻlim boʻsh</td></tr>`}</tbody></table></div>
+    ${P.length?`<div style="margin-top:12px"><button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="exportPilots()">⬇︎ CSV yuklab olish</button></div>`:''}
+  </div>`;
+}
+function setPilotFilter(k){PILOT_FILTER=k;render();}
+async function setPilotHandled(id,val){
+  const {error}=await SB.from('pilot_requests').update({handled:val}).eq('id',id);
+  if(error){alert('Xato: '+error.message);return;}
+  const p=PILOTS.find(x=>String(x.id)===String(id)); if(p)p.handled=val;
+  render();
+}
+function exportPilots(){
+  const head=['Sana','Tashkilot','Ism','Email','Oyiga ariza','Izoh','Holati'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const body=(PILOTS||[]).map(p=>[fmtDate(p.created_at),p.org,p.name,p.email,p.volume,p.note,p.handled?'Koʻrib chiqilgan':'Yangi'].map(q).join(','));
+  const csv='﻿'+[head.map(q).join(','),...body].join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='pilot-sorovlari-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 function auditBody(){
   const A=AUDIT||[];
   const lbl={allow_retake:'↻ Qayta topshirishga ruxsat berdi',verify:'✓ Tasdiqladi',unverify:'↩︎ Tasdiqni bekor qildi',review_approved:'✓ Tekshiruvni tasdiqladi',review_rejected:'✗ Rad etdi',review_reset:'↩︎ Qaytardi'};
