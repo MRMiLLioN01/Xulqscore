@@ -2660,14 +2660,22 @@ class Component extends DCLogic {
     this._sweepT = setTimeout(() => this._sweepNow(), 1200);
     if (this._sweepBound) return;
     this._sweepBound = true;
-    /* Also sweep on scroll, so anything an observer misses still appears at
-       the right moment instead of never. */
-    let t = false;
-    window.addEventListener('scroll', () => {
-      if (t) return;
-      t = true;
-      requestAnimationFrame(() => { t = false; this._sweepNow(); });
-    }, { passive: true });
+    /* Throttle on a timer rather than requestAnimationFrame: rAF is paused in
+       background tabs, which is precisely when the observers are throttled too
+       and the guarantee matters most. */
+    let last = 0;
+    const onScroll = () => {
+      const now = Date.now();
+      if (now - last < 120) return;
+      last = now;
+      this._sweepNow();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener('load', () => this._sweepNow());
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this._sweepNow();
+    });
   }
 
   _sweepNow() {
