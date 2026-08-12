@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<title>XulqskorAI — Aqlli kredit skoringi</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<title>XulqskorAI — Behavioural credit scoring</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwRjI0NDAiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjM0IiByPSIxNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTJBNUEzIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNMzIgMzQgTDQ0IDIyIiBzdHJva2U9IiNGMjZBMjEiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+">
-<meta name="description" content="Kredit tarixi boʻlmagan insonlar va kichik bizneslar uchun xulq-atvorga asoslangan kredit skoringi.">
+<meta name="description" content="Behavioural credit scoring for applicants with no credit file. Built for banks and microfinance institutions.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="XulqskorAI — Aqlli kredit skoringi">
-<meta property="og:description" content="Kredit tarixi boʻlmagan insonlar va kichik bizneslar uchun xulq-atvorga asoslangan kredit skoringi.">
+<meta property="og:title" content="XulqskorAI — Behavioural credit scoring">
+<meta property="og:description" content="Behavioural credit scoring for applicants with no credit file. Built for banks and microfinance institutions.">
 <meta property="og:url" content="https://xulqscore.uz">
 <meta name="twitter:card" content="summary_large_image">
 
@@ -41,7 +41,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:'Inter','Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;transition:background .3s,color .3s;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter','Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;transition:background .3s,color .3s;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 h1,h2,h3,h4,.sec-h,.hero h1,.qtext,.pprice,.score-big,.brand b{font-family:'Manrope','Inter','Segoe UI',sans-serif}
 ::selection{background:rgba(242,106,33,.25)}
 ::-webkit-scrollbar{width:11px}
@@ -960,7 +960,9 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
       <div style="display:grid; gap:14px">
         <div style="position:relative; border:1px solid var(--w9); border-radius:20px; overflow:hidden; aspect-ratio:3/2; box-shadow:0 34px 80px var(--sh55)">
           
-          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(5,11,20,.1) 0%, rgba(5,11,20,.4) 60%, var(--nav2) 100%)"></div>
+          
+      <img data-parallax src="img/applicant.webp" onerror="if(this.dataset.f){this.style.display='none';return;}this.dataset.f=1;this.src='img/applicant.jpg'" alt="A market trader taking the assessment on her phone" loading="lazy" decoding="async" style="position:absolute; inset:-6%; width:112%; height:112%; object-fit:cover; filter:saturate(.92); will-change:transform" />
+      <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(5,11,20,.1) 0%, rgba(5,11,20,.4) 60%, var(--nav2) 100%)"></div>
           <div style="position:absolute; left:22px; right:22px; bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap">
             <span style="font-size:14px; font-weight:600; color:var(--t1); text-shadow:0 2px 12px var(--sh6)">Ten years trading. No credit file.</span>
             <span style="display:inline-flex; align-items:center; gap:7px; background:rgba(5,11,20,.72); backdrop-filter:blur(10px); border:1px solid rgba(25,199,190,.4); border-radius:100px; padding:7px 13px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1px; color:#19C7BE"><span style="width:5px; height:5px; border-radius:50%; background:#19C7BE; animation:xsBlink 1.8s steps(1) infinite"></span>ITEM 12 / 38</span>
@@ -996,7 +998,9 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
       <div data-reveal data-reveal-delay="120" style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
         <div style="grid-column:span 2; position:relative; border:1px solid var(--w9); border-radius:20px; overflow:hidden; aspect-ratio:3/2; box-shadow:0 34px 80px var(--sh55)">
           
-          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(5,11,20,.18) 0%, var(--nav) 55%, rgba(5,11,20,.92) 100%)"></div>
+          
+      <img data-parallax src="img/officer.webp" onerror="if(this.dataset.f){this.style.display='none';return;}this.dataset.f=1;this.src='img/officer.jpg'" alt="A credit officer reviewing an application" loading="lazy" decoding="async" style="position:absolute; inset:-6%; width:112%; height:112%; object-fit:cover; filter:saturate(.82) contrast(1.04); will-change:transform" />
+      <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(5,11,20,.18) 0%, var(--nav) 55%, rgba(5,11,20,.92) 100%)"></div>
           <div style="position:absolute; left:22px; bottom:20px; right:22px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
             <div>
               <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:1.6px; color:#A9BDD8; margin-bottom:7px">BUREAU RESPONSE</div>
@@ -1266,9 +1270,9 @@ window.addEventListener('unhandledrejection',e=>reportError('unhandledRejection'
   <button id="themeBtn"></button><span id="navAccount"></span><button id="navStart"></button>
   <button id="burger"></button><div id="drawer"></div><div id="drawerBg"></div><div id="scrollBar"></div>
   <div id="dimsGrid"></div><div id="videoSlot"></div>
-  <div id="bmStage"><canvas id="bmCanvas"></canvas><div id="bmCore"></div><div id="bmGauge"></div>
+  <div id="bmCore"></div><div id="bmGauge"></div>
   <div id="bmLegend"></div><div id="bmOut"></div><div id="bmScore"></div><div id="bmSteps"></div>
-  <button id="bmReplay"></button></div>
+  <button id="bmReplay"></button>
 </div>
 
 <!-- AUTH -->
@@ -1640,7 +1644,8 @@ function buildItems(){
 }
 /* ============ APP STATE & ROUTER ============ */
 let LANG=localStorage.getItem('xs_lang')||'uz';
-let THEME=localStorage.getItem('xs_theme')||'light';
+/* new landing is designed dark-first; a saved preference still wins */
+let THEME=localStorage.getItem('xs_theme')||'dark';
 let AUTHTYPE='ind', S=null, curItem=null, curReason=null, curOrder=null, selIdx=null, qStart=0, tick=null, verified=false, eriOk=false, curStage=1;
 const LOCK_KEY='xs_lastAttempt';
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);if(id==='auth')renderAuth();if(id==='admin')renderAdmin();if(id==='cabinet')renderCabinet();}
@@ -2639,7 +2644,45 @@ class Component extends DCLogic {
       });
     }, { threshold: .12, rootMargin: '0px 0px -8% 0px' });
     els.forEach(el => io.observe(el));
+    /* mountReveals() runs more than once. Assigning to a single `this._io`
+       dropped the previous observer's only reference, so it could be collected
+       before firing and its elements stayed at opacity 0 forever. Retain all. */
+    (this._ios || (this._ios = [])).push(io);
     this._io = io;
+    /* Safety net: these elements start at opacity 0, so if the observer never
+       fires (landing hidden at boot, zero-size boxes, reduced-motion quirks)
+       the page would stay permanently blank. Force anything still hidden. */
+    this.revealSweep();
+  }
+
+  revealSweep() {
+    clearTimeout(this._sweepT);
+    this._sweepT = setTimeout(() => this._sweepNow(), 1200);
+    if (this._sweepBound) return;
+    this._sweepBound = true;
+    /* Also sweep on scroll, so anything an observer misses still appears at
+       the right moment instead of never. */
+    let t = false;
+    window.addEventListener('scroll', () => {
+      if (t) return;
+      t = true;
+      requestAnimationFrame(() => { t = false; this._sweepNow(); });
+    }, { passive: true });
+  }
+
+  _sweepNow() {
+    if (this._dead) return;
+    const host = document.getElementById('landing');
+    if (host && !host.classList.contains('active')) return;
+    document.querySelectorAll('[data-reveal][data-revealed]').forEach(el => {
+      if (el.style.opacity !== '0') return;
+      const r = el.getBoundingClientRect();
+      const off = (r.width === 0 && r.height === 0);
+      if (off || r.top < window.innerHeight * 0.94) {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      }
+    });
   }
 
   mountScrollChrome() {
@@ -3214,10 +3257,43 @@ class Component extends DCLogic {
 
   mountForm() {
     const f = document.getElementById('xsForm'); if (!f) return;
-    f.addEventListener('submit', (e) => {
+    f.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = f.querySelector('button[type="submit"]');
+      const label = btn.textContent;
       btn.textContent = 'Sending…'; btn.disabled = true; btn.style.opacity = '.7';
+
+      const fd = new FormData(f);
+      const row = {
+        name: (fd.get('name') || '').toString().trim().slice(0, 120),
+        org: (fd.get('org') || '').toString().trim().slice(0, 160),
+        email: (fd.get('email') || '').toString().trim().slice(0, 160),
+        volume: (fd.get('volume') || '').toString().trim().slice(0, 40) || null,
+        note: (fd.get('note') || '').toString().trim().slice(0, 2000) || null,
+        lang: (typeof LANG !== 'undefined' ? LANG : 'en'),
+        user_agent: navigator.userAgent.slice(0, 400)
+      };
+
+      let ok = false;
+      try {
+        const res = await SB.from('pilot_requests').insert(row);
+        ok = !res.error;
+        if (res.error) console.error('[pilot_requests]', res.error.message);
+      } catch (err) {
+        console.error('[pilot_requests]', err);
+      }
+
+      if (!ok) {
+        /* Never silently swallow a lead: hand it to the user's mail client. */
+        const body = encodeURIComponent(
+          'Name: ' + row.name + '\nInstitution: ' + row.org + '\nEmail: ' + row.email +
+          '\nMonthly applications: ' + (row.volume || '-') + '\n\n' + (row.note || ''));
+        const subj = encodeURIComponent('Pilot request - ' + row.org);
+        btn.textContent = label; btn.disabled = false; btn.style.opacity = '1';
+        window.location.href = 'mailto:xulqscore@gmail.com?subject=' + subj + '&body=' + body;
+        return;
+      }
+
       setTimeout(() => {
         f.innerHTML = `<div style="text-align:center;padding:34px 10px">
           <div style="width:58px;height:58px;margin:0 auto 20px;border-radius:50%;display:grid;place-items:center;background:rgba(25,199,190,.14);border:1px solid rgba(25,199,190,.35)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#19C7BE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
@@ -3315,6 +3391,16 @@ class Component extends DCLogic {
       const t = b.dataset.goto;
       if (typeof window.go === 'function') window.go(t === 'site' ? 'landing' : t);
     });
+    /* returning to the landing re-checks anything the observer missed */
+    const self = this, appGo = window.go;
+    if (typeof appGo === 'function' && !appGo._xsWrapped) {
+      window.go = function (id) {
+        const r = appGo.apply(this, arguments);
+        if (id === 'landing') { try { self.mountReveals(); } catch (e) {} }
+        return r;
+      };
+      window.go._xsWrapped = true;
+    }
     this.paintNavAccount();
     this.mountLang();
   }
@@ -3333,9 +3419,9 @@ class Component extends DCLogic {
       });
     };
     seg.querySelectorAll('[data-xslang]').forEach(p => {
-      p.addEventListener('click', () => { window.setLang(p.dataset.xslang); paint(); });
+      p.addEventListener('click', () => { window.setLang(p.dataset.xslang); paint(); this.paintNavAccount(); });
       p.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.setLang(p.dataset.xslang); paint(); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.setLang(p.dataset.xslang); paint(); this.paintNavAccount(); }
       });
     });
     paint();
@@ -3354,7 +3440,11 @@ class Component extends DCLogic {
         (nm.charAt(0).toUpperCase() || '?') + '</span>' + nm.split(' ')[0] + '</span>';
     } else {
       btn.dataset.goto = 'auth';
-      btn.textContent = (window.t ? window.t('nav_login') : 'Sign in') || 'Sign in';
+      /* There is no 'nav_login' key in the app's table, and t() returns the key
+         itself on a miss - which rendered the literal text "nav_login" in the
+         nav. Translate from the language directly instead. */
+      const lang = (typeof LANG !== 'undefined') ? LANG : 'en';
+      btn.textContent = { uz: 'Kirish', ru: 'Войти', en: 'Sign in' }[lang] || 'Sign in';
     }
   }
 
