@@ -1857,6 +1857,17 @@ const BM={
 };
 /* ============ AUTH (Supabase) ============ */
 function L(uz,ru,en){return LANG==='ru'?ru:LANG==='en'?en:uz;}
+/* A dead backend used to surface as "wrong phone or password", which sends
+   applicants chasing a credential problem that isn't theirs. */
+function isNetErr(e){
+  const m=String((e&&e.message)||e||'');
+  return /failed to fetch|networkerror|load failed|timeout|err_|fetch failed/i.test(m);
+}
+function netMsg(){
+  return L('Serverga ulanib boʻlmadi. Internetni tekshiring yoki keyinroq urinib koʻring.',
+           'Не удалось подключиться к серверу. Проверьте интернет или попробуйте позже.',
+           'Could not reach the server. Check your connection or try again later.');
+}
 let AUTHMODE='signup';
 /* phone: must be +998 (XX) XXX-XX-XX */
 function phoneDigits(v){let d=(v||'').replace(/\D/g,'');if(d.startsWith('998'))return d;if(d.startsWith('0'))return '998'+d.slice(1);if(d.length&&d.length<=9)return '998'+d;return d;}
@@ -1909,7 +1920,7 @@ async function authSignup(){
   if(consent&&!consent.checked){toast(t('consent'));return;}
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signUp({email:phoneEmail(phone),password,options:{data:{full_name,phone,contact_email:contact_email||null,org_name,type:AUTHTYPE}}});
-  if(error){btn.disabled=false;toast(/registered|exists/i.test(error.message)?L('Bu raqam roʻyxatdan oʻtgan','Этот номер уже зарегистрирован','This number is already registered'):('✕ '+error.message));return;}
+  if(error){btn.disabled=false;toast(isNetErr(error)?netMsg():(/registered|exists/i.test(error.message)?L('Bu raqam roʻyxatdan oʻtgan','Этот номер уже зарегистрирован','This number is already registered'):('✕ '+error.message)));return;}
   if(data.session){CURRENT_USER=data.user;await recordConsent();await loadProfile();toast('✔');updateNav();go('cabinet');}
   else {AUTHMODE='login';renderAuth();}
 }
@@ -1928,7 +1939,7 @@ async function authLogin(){
   if(!validPhone(phone)){toast(L('Telefon raqami: +998 (XX) XXX-XX-XX','Телефон: +998 (XX) XXX-XX-XX','Phone: +998 (XX) XXX-XX-XX'));return;}
   const btn=document.getElementById('authBtn');btn.disabled=true;btn.textContent='…';
   const {data,error}=await SB.auth.signInWithPassword({email:phoneEmail(phone),password});
-  if(error){btn.disabled=false;toast(L('Telefon yoki parol notoʻgʻri','Неверный телефон или пароль','Wrong phone or password'));return;}
+  if(error){btn.disabled=false;toast(isNetErr(error)?netMsg():L('Telefon yoki parol notoʻgʻri','Неверный телефон или пароль','Wrong phone or password'));return;}
   CURRENT_USER=data.user;await loadProfile();toast('✔');updateNav();go('cabinet');
 }
 async function authSignOut(){await SB.auth.signOut();CURRENT_USER=null;CURRENT_PROFILE=null;updateNav();renderAuth();}
@@ -2376,10 +2387,16 @@ function boot(){
   document.querySelectorAll('#langSeg button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   applyI18n();
   BM.init();
+  /* Both of these reject outright when the backend is unreachable. Unhandled,
+     that left updateNav() unrun and an uncaught error at every page load. */
   SB.auth.getSession().then(async ({data})=>{CURRENT_USER=(data&&data.session&&data.session.user)||null;await loadProfile();updateNav();
     if(document.getElementById('auth').classList.contains('active'))renderAuth();
-    if(document.getElementById('cabinet').classList.contains('active'))renderCabinet();});
-  SB.auth.onAuthStateChange(async (_e,session)=>{CURRENT_USER=session?session.user:null;await loadProfile();updateNav();});
+    if(document.getElementById('cabinet').classList.contains('active'))renderCabinet();})
+   .catch(e=>{console.warn('[auth] session unavailable:',e&&e.message||e);CURRENT_USER=null;try{updateNav();}catch(_){}});
+  SB.auth.onAuthStateChange(async (_e,session)=>{
+    try{CURRENT_USER=session?session.user:null;await loadProfile();updateNav();}
+    catch(e){console.warn('[auth] profile load failed:',e&&e.message||e);}
+  });
 }
 document.addEventListener('DOMContentLoaded',boot);
 /* ============================================================
