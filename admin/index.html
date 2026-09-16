@@ -167,14 +167,46 @@ function loginView(msg){
 }
 function loadingView(){app.innerHTML=`<div class="spin"></div>`;}
 
+/* The backend can be unreachable (paused project, DNS, offline). Without this
+   every await below hangs and the panel sits on a spinner for ever. */
+const NET_TIMEOUT=15000;
+function withTimeout(p,ms){
+  return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('TIMEOUT')),ms||NET_TIMEOUT))]);
+}
+function isNetworkError(e){
+  const m=String((e&&e.message)||e||'');
+  return /failed to fetch|networkerror|timeout|load failed|err_/i.test(m);
+}
+function backendDownView(detail){
+  app.innerHTML=`<div class="center"><div class="brand"><span class="dot"></span><b>XulqskorAI · Admin</b></div>
+    <div class="card">
+      <div style="font-size:40px;text-align:center">🔌</div>
+      <h2 style="font-size:19px;font-weight:800;text-align:center;margin:8px 0">Serverga ulanib boʻlmadi</h2>
+      <p class="muted" style="text-align:center;font-size:13.5px;line-height:1.6;margin-bottom:18px">
+        Maʼlumotlar bazasi javob bermayapti. Internet aloqangizni tekshiring — muammo saqlanib qolsa,
+        Supabase loyihasi toʻxtatilgan (paused) boʻlishi mumkin.</p>
+      ${detail?`<div class="err" style="font-size:12px">${esc(detail)}</div>`:''}
+      <button class="btn btn-navy btn-block" onclick="location.reload()">↻ Qayta urinish</button>
+    </div></div>`;
+}
+
 const ADMIN_DOMAIN='@admin.xulqscore.uz';
 async function doLogin(){
   let email=($('email').value||'').trim(), password=$('password').value||'';
   if(email && !email.includes('@')) email=email.toLowerCase()+ADMIN_DOMAIN;
   if(!email||!password){loginView('Login va parolni kiriting');return;}
   const btn=$('loginBtn'); btn.disabled=true; btn.textContent='…';
-  const {data,error}=await SB.auth.signInWithPassword({email,password});
-  if(error){loginView('✕ '+error.message);return;}
+  let data,error;
+  try{
+    ({data,error}=await withTimeout(SB.auth.signInWithPassword({email,password})));
+  }catch(e){
+    if(isNetworkError(e)){backendDownView(String(e&&e.message||e));return;}
+    error={message:String(e&&e.message||e)};
+  }
+  if(error){
+    loginView(isNetworkError(error)?'✕ Serverga ulanib boʻlmadi. Keyinroq urinib koʻring.':'✕ '+error.message);
+    return;
+  }
   await afterAuth(data.user);
 }
 async function doLogout(){await SB.auth.signOut();ROWS=null;ADMIN=false;loginView();}
@@ -183,7 +215,13 @@ let ADMIN_USER=null;
 async function afterAuth(user){
   loadingView();
   // verify admin role
-  const {data:prof,error:pe}=await SB.from('profiles').select('role,full_name').eq('id',user.id).maybeSingle();
+  let prof,pe;
+  try{
+    ({data:prof,error:pe}=await withTimeout(SB.from('profiles').select('role,full_name').eq('id',user.id).maybeSingle()));
+  }catch(e){
+    if(isNetworkError(e)){backendDownView(String(e.message||e));return;}
+    pe={message:String(e&&e.message||e)};
+  }
   if(pe){loginView('Profilni oʻqishda xato: '+pe.message);return;}
   if(!prof||!['admin','super_admin'].includes(prof.role)){
     app.innerHTML=`<div class="center"><div class="card">
@@ -205,13 +243,19 @@ async function logAudit(action,target_id,target_name,detail){
 let AUDIT=[],ERRORS=[],PILOTS=[];
 async function loadData(){
   loadingView();
-  const [{data:res,error:re},{data:profs,error:pe},{data:aud},{data:errs},{data:pil,error:ple}]=await Promise.all([
+  let res,re,profs,pe,aud,errs,pil,ple;
+  try{
+  [{data:res,error:re},{data:profs,error:pe},{data:aud},{data:errs},{data:pil,error:ple}]=await withTimeout(Promise.all([
     SB.from('test_results').select('*').order('created_at',{ascending:false}),
     SB.from('profiles').select('*'),
     SB.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200),
     SB.from('error_log').select('*').order('created_at',{ascending:false}).limit(100),
     SB.from('pilot_requests').select('*').order('created_at',{ascending:false}).limit(500)
-  ]);
+  ]));
+  }catch(e){
+    backendDownView(String(e&&e.message||e));
+    return;
+  }
   AUDIT=aud||[]; ERRORS=errs||[]; PILOTS=pil||[];
   if(ple)console.warn('pilot_requests:',ple.message);
   if(re||pe){app.innerHTML=`<div class="wrap"><div class="err">Maʼlumotlarni yuklashda xato: ${esc((re||pe).message)}</div><button class="btn btn-ghost" onclick="loadData()">Qayta urinish</button></div>`;return;}
@@ -599,9 +643,14 @@ function auditBody(){
 /* ===== boot ===== */
 (async()=>{
   loadingView();
-  const {data}=await SB.auth.getSession();
-  if(data&&data.session){await afterAuth(data.session.user);}
-  else loginView();
+  try{
+    const {data}=await withTimeout(SB.auth.getSession());
+    if(data&&data.session){await afterAuth(data.session.user);}
+    else loginView();
+  }catch(e){
+    if(isNetworkError(e)) backendDownView(String(e.message||e));
+    else loginView('Xato: '+(e&&e.message||e));
+  }
 })();
 </script>
 <script>
