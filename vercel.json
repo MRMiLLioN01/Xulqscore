@@ -1,4 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": false,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
@@ -30,13 +33,39 @@
         {
           "key": "Cross-Origin-Opener-Policy",
           "value": "same-origin"
-        },
+        }
+      ]
+    },
+    {
+      "source": "/(og.jpg|favicon.ico|favicon-32.png|apple-touch-icon.png|img/(.*))",
+      "headers": [
         {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
         }
       ]
     }
   ],
-  "$schema": "https://openapi.vercel.sh/vercel.json"
+  "redirects": [
+    {
+      "source": "/admin",
+      "destination": "https://admin.xulqscore.uz/",
+      "permanent": false
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://admin.xulqscore.uz/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/partner",
+      "destination": "https://partner.xulqscore.uz/",
+      "permanent": false
+    },
+    {
+      "source": "/partner/:path*",
+      "destination": "https://partner.xulqscore.uz/:path*",
+      "permanent": false
+    }
+  ]
 }
